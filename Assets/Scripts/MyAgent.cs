@@ -1,5 +1,7 @@
 using UnityEngine;
-using MLAgents;
+using Unity.MLAgents;
+using Unity.MLAgents.Sensors;
+using Unity.MLAgents.Actuators;
 
 public class MyAgent : Agent
 {
@@ -23,7 +25,7 @@ public class MyAgent : Agent
     }
 
     // 에이전트가 선택한 행동을 기반으로 보상을 계산하거나 환경을 업데이트하는 곳입니다.
-    public override void OnActionReceived(float[] vectorAction)
+    public override void OnActionReceived(ActionBuffers actions)
     {
         // 1. 행동에 따른 플레이어 이동 (상, 하, 좌, 우 등)
         // 2. 플레이어가 점령한 영역을 업데이트
@@ -32,7 +34,7 @@ public class MyAgent : Agent
     }
 
     // 수동으로 행동을 테스트하고 싶을 때 정의할 수 있습니다.
-    public override void Heuristic(float[] actionsOut)
+    public override void Heuristic(in ActionBuffers actionsOut)
     {
         // 1. 키보드나 마우스를 이용해 수동으로 행동 결정
         // 2. 상, 하, 좌, 우 이동 조작
