@@ -13,6 +13,7 @@ public class PlayerController : MonoBehaviour
     private Vector3 targetPosition;
 
     private LineTrailWithCollision trail;
+    private CornerPointTracker cornerTracker;
 
     void Start()
     {
@@ -21,15 +22,24 @@ public class PlayerController : MonoBehaviour
         targetPosition = transform.position;
 
         trail = FindObjectOfType<LineTrailWithCollision>();
+        cornerTracker = GetComponent<CornerPointTracker>();
     }
 
     void Update()
     {
         HandleInput();
 
-        // 이동 중이 아닐 때만 방향 전환 및 이동 시작
         if (!isMoving && queuedDirection != Vector2Int.zero && queuedDirection != -direction)
         {
+            // ✅ 꺾임 체크 및 코너 저장
+            if (direction != Vector2Int.zero && queuedDirection != direction)
+            {
+                if (cornerTracker != null)
+                {
+                    cornerTracker.AddCorner(gridPosition);
+                }
+            }
+
             direction = queuedDirection;
 
             gridPosition += direction;
@@ -40,7 +50,6 @@ public class PlayerController : MonoBehaviour
                 trail.trailActive = true;
         }
 
-        // 이동 중일 때 MoveTowards
         if (isMoving)
         {
             transform.position = Vector3.MoveTowards(transform.position, targetPosition, moveSpeed * Time.deltaTime);
@@ -55,14 +64,18 @@ public class PlayerController : MonoBehaviour
 
     void HandleInput()
     {
+        Vector2Int input = Vector2Int.zero;
+
         if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed)
-            queuedDirection = Vector2Int.up;
+            input = Vector2Int.up;
         else if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed)
-            queuedDirection = Vector2Int.down;
+            input = Vector2Int.down;
         else if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed)
-            queuedDirection = Vector2Int.left;
+            input = Vector2Int.left;
         else if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed)
-            queuedDirection = Vector2Int.right;
+            input = Vector2Int.right;
+
+        if (input != Vector2Int.zero && input != -direction)
+            queuedDirection = input;
     }
-    
 }
