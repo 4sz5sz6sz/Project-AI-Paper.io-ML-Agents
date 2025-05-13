@@ -1,3 +1,4 @@
+// PlayerController.cs
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -13,7 +14,10 @@ public class PlayerController : MonoBehaviour
     private Vector3 targetPosition;
 
     private LineTrailWithCollision trail;
-    private CornerPointTracker cornerTracker;
+    [SerializeField] private CornerPointTracker cornerTracker;
+    [SerializeField] private LoopDetector loopDetector;
+    [SerializeField] private MapManager mapManager;
+    private bool wasInsideOwnedArea = false;
 
     void Start()
     {
@@ -22,26 +26,29 @@ public class PlayerController : MonoBehaviour
         targetPosition = transform.position;
 
         trail = FindObjectOfType<LineTrailWithCollision>();
-        cornerTracker = GetComponent<CornerPointTracker>();
+        if (cornerTracker == null)
+            cornerTracker = GetComponent<CornerPointTracker>();
+        if (loopDetector == null)
+            loopDetector = FindObjectOfType<LoopDetector>();
+        if (mapManager == null)
+            mapManager = FindObjectOfType<MapManager>();
+        
+        wasInsideOwnedArea = mapManager.GetTile(gridPosition) == cornerTracker.playerId;
     }
 
     void Update()
     {
         HandleInput();
 
+        // 방향이 바뀔 때만 코너 저장
         if (!isMoving && queuedDirection != Vector2Int.zero && queuedDirection != -direction)
         {
-            // ✅ 꺾임 체크 및 코너 저장
             if (direction != Vector2Int.zero && queuedDirection != direction)
             {
-                if (cornerTracker != null)
-                {
-                    cornerTracker.AddCorner(gridPosition);
-                }
+                cornerTracker?.AddCorner(gridPosition);
             }
 
             direction = queuedDirection;
-
             gridPosition += direction;
             targetPosition = new Vector3(gridPosition.x, gridPosition.y, 0f);
             isMoving = true;
@@ -50,6 +57,7 @@ public class PlayerController : MonoBehaviour
                 trail.trailActive = true;
         }
 
+        // 이동 처리
         if (isMoving)
         {
             transform.position = Vector3.MoveTowards(transform.position, targetPosition, moveSpeed * Time.deltaTime);
@@ -58,6 +66,24 @@ public class PlayerController : MonoBehaviour
             {
                 transform.position = targetPosition;
                 isMoving = false;
+
+                int currentTile = mapManager.GetTile(gridPosition);
+                bool isInsideOwnedArea = currentTile == cornerTracker.playerId;
+
+                // ✅ 내 영역 밖으로 나갈 때 점 추가
+                if (wasInsideOwnedArea && !isInsideOwnedArea)
+                {
+                    Debug.Log("📌 내 영역을 벗어남 - 점 추가");
+                    cornerTracker?.AddCorner(gridPosition);
+                }
+
+                if (trail.trailActive && currentTile == cornerTracker.playerId)
+                {
+                    cornerTracker?.AddCorner(gridPosition);
+                    loopDetector?.CheckLoop(cornerTracker);
+                }
+                
+                wasInsideOwnedArea = isInsideOwnedArea;
             }
         }
     }
