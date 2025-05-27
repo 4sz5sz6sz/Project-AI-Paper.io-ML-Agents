@@ -15,9 +15,9 @@ public class PlayerController : MonoBehaviour
     private Vector3 targetPosition;
 
     private LineTrailWithCollision trail;
-    [SerializeField] private CornerPointTracker cornerTracker;
-    [SerializeField] private LoopDetector loopDetector;
-    [SerializeField] private MapManager mapManager;
+    private CornerPointTracker cornerTracker;
+    private LoopDetector loopDetector;
+    private MapManager mapManager;
     private bool wasInsideOwnedArea = false;
 
     void Start()

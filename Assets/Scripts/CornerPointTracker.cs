@@ -7,9 +7,9 @@ public class CornerPointTracker : MonoBehaviour
 {
     public List<Vector2Int> cornerPoints = new List<Vector2Int>();
     // private List<Vector2Int> cornerPoints = new List<Vector2Int>();
-    public MapManager mapManager;
+    MapManager mapManager;
     public int playerId = 1;
-    public LineRenderer lineRenderer;
+    LineRenderer lineRenderer;
 
     void Start()
     {
@@ -18,6 +18,11 @@ public class CornerPointTracker : MonoBehaviour
         lineRenderer.startWidth = 1.1f; // 선의 두께
         lineRenderer.endWidth = 1.1f;
         lineRenderer.positionCount = 0;
+        mapManager = FindFirstObjectByType<MapManager>();
+        if (mapManager == null)
+        {
+            Debug.LogError("MapManager를 찾을 수 없습니다. Inspector에서 할당해주세요.");
+        }
     }
 
     public void AddCorner(Vector2Int gridPos)
