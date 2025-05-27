@@ -109,7 +109,7 @@ public class LineTrailWithCollision : MonoBehaviour
     }
 
     // 궤적 초기화 메서드 추가
-    void ResetTrail()
+    public void ResetTrail()
     {
         // 모든 점들을 초기화
         points.Clear();

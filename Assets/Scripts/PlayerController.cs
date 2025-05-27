@@ -86,6 +86,10 @@ public class PlayerController : MonoBehaviour
                     cornerTracker?.AddCorner(gridPosition);
                     loopDetector?.CheckLoop(cornerTracker);
                     cornerTracker.DisplayCornersFor1Second();
+                    
+                    // 내 영역 안으로 들어오면 궤적 초기화
+                    trail?.ResetTrail();
+                    trail.trailActive = false; // 궤적 그리기 비활성화
                 }
 
                 wasInsideOwnedArea = isInsideOwnedArea;
