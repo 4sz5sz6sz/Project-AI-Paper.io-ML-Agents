@@ -64,7 +64,7 @@ public class MapManager : MonoBehaviour
     {
         foreach (var p in polygon)
         {
-            Vector2Int offset = new Vector2Int(1, 0);
+            Vector2Int offset = new Vector2Int(1, 0); //왜 오른쪽으로 이동하는지?? 예외가 있을텐데..
             Vector2Int candidate = p + offset;
             if (InBounds(candidate) && IsPointInPolygon(new Vector2(candidate.x + 0.5f, candidate.y + 0.5f), polygon))
             {
@@ -74,6 +74,7 @@ public class MapManager : MonoBehaviour
         return polygon[0];
     }
 
+    //BFS 코드
     private void FloodFill(Vector2Int start, List<Vector2Int> polygon, int ownerValue)
     {
         Queue<Vector2Int> queue = new Queue<Vector2Int>();
