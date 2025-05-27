@@ -80,18 +80,17 @@ public class PlayerController : MonoBehaviour
                     cornerTracker?.AddCorner(gridPosition);
                 }
 
-                // ✅ 내 영역 안으로 들어올 때 점 추가
-                if (trail.trailActive && currentTile == cornerTracker.playerId)
+                // ✅ 내 영역 안으로 들어올 때 코너 추가 및 폐곡선 검사
+                if (!wasInsideOwnedArea && isInsideOwnedArea)
                 {
+                    Debug.Log("📌 내 영역 안으로 들어옴 - 코너 추가 및 폐곡선 검사");
                     cornerTracker?.AddCorner(gridPosition);
                     loopDetector?.CheckLoop(cornerTracker);
                     cornerTracker.DisplayCornersFor1Second();
-
-                    // 내 영역 안으로 들어오면 궤적 초기화
-                    trail?.ResetTrail();
+                    trail?.ResetTrail(); // 궤적 초기화
                     trail.trailActive = false; // 궤적 그리기 비활성화
                 }
-
+                // ✅ 영역 상태 업데이트
                 wasInsideOwnedArea = isInsideOwnedArea;
             }
         }
