@@ -32,7 +32,7 @@ public class PlayerController : MonoBehaviour
             loopDetector = FindObjectOfType<LoopDetector>();
         if (mapManager == null)
             mapManager = FindObjectOfType<MapManager>();
-        
+
         wasInsideOwnedArea = mapManager.GetTile(gridPosition) == cornerTracker.playerId;
     }
 
@@ -50,7 +50,7 @@ public class PlayerController : MonoBehaviour
 
             direction = queuedDirection;
             gridPosition += direction;
-            targetPosition = new Vector3(gridPosition.x, gridPosition.y, 0f);
+            targetPosition = new Vector3(gridPosition.x, gridPosition.y, -10f);
             isMoving = true;
 
             if (trail != null && !trail.trailActive)
@@ -82,7 +82,7 @@ public class PlayerController : MonoBehaviour
                     cornerTracker?.AddCorner(gridPosition);
                     loopDetector?.CheckLoop(cornerTracker);
                 }
-                
+
                 wasInsideOwnedArea = isInsideOwnedArea;
             }
         }
