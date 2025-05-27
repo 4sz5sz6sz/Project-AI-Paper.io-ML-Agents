@@ -24,7 +24,7 @@ public class LineTrailWithCollision : MonoBehaviour
     {
         lineRenderer = GetComponent<LineRenderer>();
         edgeCollider = gameObject.AddComponent<EdgeCollider2D>();
-        
+
         edgeCollider.isTrigger = true;
 
         // ✅ 플레이어 색상 & 너비
@@ -90,7 +90,7 @@ public class LineTrailWithCollision : MonoBehaviour
     {
         if (points.Count > 0 && Vector3.Distance(points[points.Count - 1], point) < 0.01f)
             return;
-    
+
         points.Add(point);
         lineRenderer.positionCount = points.Count;
         lineRenderer.SetPositions(points.ToArray());
@@ -103,9 +103,29 @@ public class LineTrailWithCollision : MonoBehaviour
     {
         if (other.CompareTag("Player") && collisionActive)
         {
-            // 궤적과 충돌 시 처리
             Debug.Log($"{other.name} 라인에 닿았습니다!");
-            // Destroy(other.gameObject);
+            ResetTrail();
         }
     }
+
+    // 궤적 초기화 메서드 추가
+    void ResetTrail()
+    {
+        // 모든 점들을 초기화
+        points.Clear();
+        colliderPoints.Clear();
+
+        // LineRenderer의 포지션 초기화
+        lineRenderer.positionCount = 0;
+
+        // EdgeCollider2D의 포인트 초기화
+        edgeCollider.points = new Vector2[0];
+
+        // 마지막 위치 현재 플레이어 위치로 업데이트
+        lastPosition = playerTransform.position;
+
+        // 충돌 비활성화 (새로운 궤적이 생성되기 시작할 때까지)
+        collisionActive = false;
+    }
+
 }

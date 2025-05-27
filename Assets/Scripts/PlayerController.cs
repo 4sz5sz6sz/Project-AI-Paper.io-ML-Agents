@@ -26,13 +26,14 @@ public class PlayerController : MonoBehaviour
         transform.position = (Vector2)gridPosition;
         targetPosition = transform.position;
 
-        trail = FindObjectOfType<LineTrailWithCollision>();
+        // 컴포넌트 초기화,  FindFirstObjectByType로 바꿈. 나중에 플레이어 2명 이상이면 문제 있을수도..
+        trail = FindFirstObjectByType<LineTrailWithCollision>();
         if (cornerTracker == null)
             cornerTracker = GetComponent<CornerPointTracker>();
         if (loopDetector == null)
-            loopDetector = FindObjectOfType<LoopDetector>();
+            loopDetector = FindFirstObjectByType<LoopDetector>();
         if (mapManager == null)
-            mapManager = FindObjectOfType<MapManager>();
+            mapManager = FindFirstObjectByType<MapManager>();
 
         wasInsideOwnedArea = mapManager.GetTile(gridPosition) == cornerTracker.playerId;
     }
