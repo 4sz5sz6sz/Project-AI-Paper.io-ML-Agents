@@ -1,4 +1,5 @@
 // PlayerController.cs
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -46,6 +47,7 @@ public class PlayerController : MonoBehaviour
             if (direction != Vector2Int.zero && queuedDirection != direction)
             {
                 cornerTracker?.AddCorner(gridPosition);
+                Debug.Log($"현재 코너 점 개수: {cornerTracker.GetPoints().Count}");
             }
 
             direction = queuedDirection;
@@ -77,10 +79,12 @@ public class PlayerController : MonoBehaviour
                     cornerTracker?.AddCorner(gridPosition);
                 }
 
+                // ✅ 내 영역 안으로 들어올 때 점 추가
                 if (trail.trailActive && currentTile == cornerTracker.playerId)
                 {
                     cornerTracker?.AddCorner(gridPosition);
                     loopDetector?.CheckLoop(cornerTracker);
+                    cornerTracker.DisplayCornersFor1Second();
                 }
 
                 wasInsideOwnedArea = isInsideOwnedArea;
