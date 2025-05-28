@@ -30,7 +30,7 @@ public class CornerPointTracker : MonoBehaviour
         if (cornerPoints.Count == 0 || cornerPoints[^1] != gridPos)
         {
             cornerPoints.Add(gridPos);
-            Debug.Log($"🧩 코너 추가: {gridPos}");
+            // Debug.Log($"🧩 코너 추가: {gridPos}");
         }
     }
 
@@ -61,30 +61,36 @@ public class CornerPointTracker : MonoBehaviour
     // 저장된 꼭짓점을 1초 동안 검은색으로 출력
     public void DisplayCornersFor1Second()
     {
+        // 제대로 작동 안됨..
         StartCoroutine(DisplayCornersCoroutine());
     }
 
     private IEnumerator DisplayCornersCoroutine()
     {
-        // 저장된 꼭짓점들이 존재하면 LineRenderer로 그리기
+        //제대로 작동 안됨..
         if (cornerPoints.Count > 0)
         {
-            lineRenderer.positionCount = cornerPoints.Count;
+            // 폐곡선을 만들기 위해 마지막 점과 첫 점을 연결
+            lineRenderer.positionCount = cornerPoints.Count + 1;
+
+            // 모든 코너 포인트 추가
             for (int i = 0; i < cornerPoints.Count; i++)
             {
-                // (꼭짓점의 위치)를 LineRenderer에 설정
                 Vector3 pointPosition = new Vector3(cornerPoints[i].x, cornerPoints[i].y, 0f);
                 lineRenderer.SetPosition(i, pointPosition);
+                Debug.Log($"꼭짓점 {i}: {cornerPoints[i]} -> 위치: {pointPosition}");
             }
 
-            // 검은색으로 설정
+            // 마지막에 첫 번째 점을 다시 추가하여 폐곡선 완성
+            lineRenderer.SetPosition(cornerPoints.Count, new Vector3(cornerPoints[0].x, cornerPoints[0].y, 0f));
+
+            // 선 색상과 너비 설정
             lineRenderer.startColor = Color.black;
             lineRenderer.endColor = Color.black;
+            lineRenderer.startWidth = 0.2f;
+            lineRenderer.endWidth = 0.2f;
 
-            // 1초 기다리기
             yield return new WaitForSeconds(1f);
-
-            // 1초 후 LineRenderer 초기화 (선을 제거)
             lineRenderer.positionCount = 0;
         }
     }
