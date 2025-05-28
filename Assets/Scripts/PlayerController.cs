@@ -45,7 +45,8 @@ public class PlayerController : MonoBehaviour
         // 방향이 바뀔 때만 코너 저장
         if (!isMoving && queuedDirection != Vector2Int.zero && queuedDirection != -direction)
         {
-            if (direction != Vector2Int.zero && queuedDirection != direction)
+            // 수정된 부분: 내 영역 밖에 있을 때만 코너 저장
+            if (direction != Vector2Int.zero && queuedDirection != direction && !wasInsideOwnedArea)
             {
                 cornerTracker?.AddCorner(gridPosition);
                 Debug.Log($"현재 코너 점 개수: {cornerTracker.GetPoints().Count}");
@@ -56,7 +57,7 @@ public class PlayerController : MonoBehaviour
             targetPosition = new Vector3(gridPosition.x, gridPosition.y, -10f);
             isMoving = true;
 
-            // 수정된 부분: 내 영역 밖에 있을 때만 궤적 활성화
+            // 내 영역 밖에 있을 때만 궤적 활성화
             if (trail != null && !trail.trailActive && !wasInsideOwnedArea)
                 trail.trailActive = true;
         }
