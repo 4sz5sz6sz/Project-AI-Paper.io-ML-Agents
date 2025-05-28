@@ -49,12 +49,15 @@ public class MapManager : MonoBehaviour
 
     public void ApplyCornerArea(List<Vector2Int> cornerPoints, int ownerValue)
     {
-        if (cornerPoints == null || cornerPoints.Count < 3) return;
+        if (cornerPoints == null || cornerPoints.Count < 2) return; // 최소 2개의 점은 필요
 
         // 시작점과 끝점 사이에 내 영역 내부의 점들을 찾아 추가
         var safeCornerPoints = CreateSafePolygon(cornerPoints, ownerValue);
 
+        // 내부 점 찾기
         Vector2Int start = FindInteriorPoint(safeCornerPoints);
+
+        // FloodFill로 영역 채우기
         FloodFill(start, safeCornerPoints, ownerValue);
 
         if (tileRenderer != null)

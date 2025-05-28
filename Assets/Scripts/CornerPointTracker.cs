@@ -36,13 +36,13 @@ public class CornerPointTracker : MonoBehaviour
 
     public void FinalizePolygon()
     {
-        if (cornerPoints.Count < 3)
+        if (cornerPoints == null || cornerPoints.Count < 2)
         {
-            Debug.Log("❌ 폐곡선이 아닙니다. 점 개수 부족");
+            Debug.Log("❌ 유효하지 않은 경로: 점이 부족함");
             return;
         }
 
-        Debug.Log($"🎯 폐곡선 완성 → 영역 점령 시작 (점 개수: {cornerPoints.Count})");
+        Debug.Log($"🎯 영역 점령 시작 (점 개수: {cornerPoints.Count})");
         mapManager.ApplyCornerArea(cornerPoints, playerId);
         Clear();
     }
