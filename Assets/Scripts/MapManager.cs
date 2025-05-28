@@ -70,16 +70,20 @@ public class MapManager : MonoBehaviour
     {
         var result = new List<Vector2Int>(originalPoints);
 
-        // 시작점과 끝점
         Vector2Int start = originalPoints[0];
         Vector2Int end = originalPoints[^1];
 
-        // 내 영역 내부에서 경로 찾기
         List<Vector2Int> safePath = FindPathThroughOwnedArea(start, end, ownerValue);
 
-        // 찾은 경로의 점들을 결과 리스트에 추가
         if (safePath != null && safePath.Count > 0)
         {
+            // 코너 트래커 찾아서 추가된 점들 표시
+            var cornerTracker = FindObjectOfType<CornerPointTracker>();
+            if (cornerTracker != null)
+            {
+                cornerTracker.ShowAdditionalPoints(safePath);
+            }
+
             result.AddRange(safePath);
         }
 
@@ -204,24 +208,48 @@ public class MapManager : MonoBehaviour
     {
         Queue<Vector2Int> queue = new Queue<Vector2Int>();
         HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
-        Vector2Int[] dirs = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+        Vector2Int[] dirs = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
 
         queue.Enqueue(start);
         visited.Add(start);
+
+        // 각 타일의 네 모서리 점을 체크하기 위한 오프셋
+        Vector2[] cornerOffsets = {
+            new Vector2(0.1f, 0.1f),    // 좌하단
+            new Vector2(0.1f, 0.9f),    // 좌상단
+            new Vector2(0.9f, 0.1f),    // 우하단
+            new Vector2(0.9f, 0.9f)     // 우상단
+        };
 
         while (queue.Count > 0)
         {
             Vector2Int current = queue.Dequeue();
             if (!InBounds(current)) continue;
-            if (!IsPointInPolygon(new Vector2(current.x + 0.5f, current.y + 0.5f), polygon)) continue;
 
+            // 타일의 네 모서리를 모두 체크
+            bool isInside = true;
+            foreach (var offset in cornerOffsets)
+            {
+                Vector2 checkPoint = new Vector2(current.x + offset.x, current.y + offset.y);
+                if (!IsPointInPolygon(checkPoint, polygon))
+                {
+                    isInside = false;
+                    break;
+                }
+            }
+
+            if (!isInside) continue;
+
+            // 타일이 확실히 내부에 있다고 판단되면 색칠
             SetTile(current, ownerValue);
 
+            // 인접 타일 체크
             foreach (var dir in dirs)
             {
                 Vector2Int next = current + dir;
-                if (visited.Add(next))
+                if (!visited.Contains(next))
                 {
+                    visited.Add(next);
                     queue.Enqueue(next);
                 }
             }
