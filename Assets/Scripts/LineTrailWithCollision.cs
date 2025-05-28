@@ -72,7 +72,6 @@ public class LineTrailWithCollision : MonoBehaviour
         }
         if (points.Count >= 1 && !collisionActive)
         {
-            Debug.Log($"ㅎㅇㅎㅇㅇ");
             collisionActive = true;
         }
     }

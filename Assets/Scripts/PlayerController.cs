@@ -56,7 +56,8 @@ public class PlayerController : MonoBehaviour
             targetPosition = new Vector3(gridPosition.x, gridPosition.y, -10f);
             isMoving = true;
 
-            if (trail != null && !trail.trailActive)
+            // 수정된 부분: 내 영역 밖에 있을 때만 궤적 활성화
+            if (trail != null && !trail.trailActive && !wasInsideOwnedArea)
                 trail.trailActive = true;
         }
 
@@ -78,6 +79,7 @@ public class PlayerController : MonoBehaviour
                 {
                     Debug.Log("📌 내 영역을 벗어남 - 점 추가");
                     cornerTracker?.AddCorner(gridPosition);
+                    trail.trailActive = true; // 궤적 그리기 활성화
                 }
 
                 // ✅ 내 영역 안으로 들어올 때 코너 추가 및 폐곡선 검사
