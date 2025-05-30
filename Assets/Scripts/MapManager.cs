@@ -3,17 +3,30 @@ using System.Collections.Generic;
 
 public class MapManager : MonoBehaviour
 {
+    // ─────────────────────────────────────────────────
+    // 싱글톤 인스턴스
+    public static MapManager Instance { get; private set; }
+    // ─────────────────────────────────────────────────
+
     public int width = 100;
     public int height = 100;
     public int[,] tileStates;
 
-    public TileRenderer tileRenderer;  // TileRenderer 참조
+    [Tooltip("TileRenderer 참조 (Inspector에서 할당)")]
+    public TileRenderer tileRenderer;
 
     void Awake()
     {
-        tileStates = new int[width, height];
+        // 싱글톤 설정
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
 
-        // 예제 초기화: (0,0)~(9,9)를 1로 세팅
+        // 맵 상태 초기화
+        tileStates = new int[width, height];
         for (int x = 0; x < 10; x++)
             for (int y = 0; y < 10; y++)
                 tileStates[x, y] = 1;
@@ -37,62 +50,67 @@ public class MapManager : MonoBehaviour
     public int GetTile(Vector2Int pos)
         => InBounds(pos) ? tileStates[pos.x, pos.y] : -1;
 
-    // 코너 포인트로 이루어진 폴리곤 내부를 ownerValue로 채우고,
-    // (addedCount, totalCount) 형태로
-    // “추가된 개수”와 “전체 개수”를 반환
-    public (int addedCount, int totalCount) ApplyCornerArea(List<Vector2Int> cornerPoints, int ownerValue)
+    /// <summary>
+    /// cornerPoints로 정의된 폴리곤 내부를 ownerValue로 채우고,
+    /// 이번에 추가된 타일 수와
+    /// 전체 초록 타일 수(afterCount)를 콘솔에 찍고,
+    /// GameController.SetScore(afterCount) 호출 → UI 갱신
+    /// </summary>
+    public int ApplyCornerArea(List<Vector2Int> cornerPoints, int ownerValue)
     {
-        // 1) 다각형(폐곡선)을 이루려면 최소한 꼭짓점 포인트가 3개는 있어야..
+        // 1) 다각형 성립 불가 시
         if (cornerPoints == null || cornerPoints.Count < 3)
         {
-            int totalCount = 0;
-            
-            if (tileRenderer != null)
-            {
-                totalCount = tileRenderer.GetGreenCount(); // 2) TileRenderer가 연결되어 있으면
-            }
-            
-            return (addedCount: 0, totalCount: totalCount); // 3) 추가된 개수는 0, 전체 개수는 totalCount로 반환
-        }
-        // 채우기 전 전체 초록 타일 개수 구하는 로직직
-        int beforeCount = 0;
-
-        if (tileRenderer != null)
-        {
-            beforeCount = tileRenderer.GetGreenCount();
+            Debug.Log("[MapManager] ApplyCornerArea: 유효하지 않은 cornerPoints");
+            int totalCount = (tileRenderer != null)
+                ? tileRenderer.GetGreenCount()
+                : 0;
+            Debug.Log($"[MapManager] 총 초록 타일 (변화 없음): {totalCount}");
+            return 0;
         }
 
-        // 2) 내부 점 찾기
+        // 2) 채우기 전 전체 초록 개수
+        int before = (tileRenderer != null)
+            ? tileRenderer.GetGreenCount()
+            : 0;
+
+        // 3) FloodFill
         Vector2Int start = FindInteriorPoint(cornerPoints);
-
-        // 3) FloodFill로 내부 타일 ownerValue로 변경
         FloodFill(start, cornerPoints, ownerValue);
 
-        // 4) 화면 갱신 & 채운 뒤 전체 초록 타일 개수
-        if (tileRenderer != null)
-        {
-            int afterCount = tileRenderer.RedrawAllTilesAndGetGreenCount();
-            int added = afterCount - beforeCount;
-            Debug.Log($"[MapManager] 이번에 추가된 타일: {added}, 전체 초록 타일: {afterCount}");
-            return (added, afterCount);
-        }
+        // 4) 화면 갱신 + 전체 초록 개수
+        int after = (tileRenderer != null)
+            ? tileRenderer.RedrawAllTilesAndGetGreenCount()
+            : before;
 
-        return (0, beforeCount);
+        int addedCount = after - before;
+
+        // 5) 로그 출력
+        Debug.Log($"[MapManager] 이번에 추가된 타일: {addedCount}");
+        Debug.Log($"[MapManager] 전체 초록 타일: {after}");
+
+        // 6) UI(점수) 업데이트
+        if (GameController.Instance != null)
+            GameController.Instance.SetScore(after);
+
+        return addedCount;
     }
 
-    private Vector2Int FindInteriorPoint(List<Vector2Int> polygon)
+    // 다각형 내부 판정용: 각 꼭짓점 우측 칸을 찍어 검사
+    private Vector2Int FindInteriorPoint(List<Vector2Int> poly)
     {
-        foreach (var p in polygon)
+        foreach (var p in poly)
         {
-            Vector2Int candidate = p + new Vector2Int(1, 0);
-            if (InBounds(candidate) &&
-                IsPointInPolygon(new Vector2(candidate.x + 0.5f, candidate.y + 0.5f), polygon))
-                return candidate;
+            var cand = p + Vector2Int.right;
+            if (InBounds(cand) &&
+                IsPointInPolygon(cand + new Vector2(0.5f, 0.5f), poly))
+                return cand;
         }
-        return polygon[0];
+        return poly[0];
     }
 
-    private void FloodFill(Vector2Int start, List<Vector2Int> polygon, int ownerValue)
+    // BFS FloodFill
+    private void FloodFill(Vector2Int start, List<Vector2Int> poly, int ownerValue)
     {
         var queue = new Queue<Vector2Int>();
         var visited = new HashSet<Vector2Int>();
@@ -108,7 +126,7 @@ public class MapManager : MonoBehaviour
         {
             var cur = queue.Dequeue();
             if (!InBounds(cur)) continue;
-            if (!IsPointInPolygon(new Vector2(cur.x + 0.5f, cur.y + 0.5f), polygon)) continue;
+            if (!IsPointInPolygon(cur + new Vector2(0.5f, 0.5f), poly)) continue;
 
             SetTile(cur, ownerValue);
 
@@ -121,16 +139,19 @@ public class MapManager : MonoBehaviour
         }
     }
 
+    // Ray-casting 점-다각형 포함 검사
     private bool IsPointInPolygon(Vector2 pt, List<Vector2Int> poly)
     {
-        int n = poly.Count;
         bool inside = false;
+        int n = poly.Count;
         for (int i = 0, j = n - 1; i < n; j = i++)
         {
-            Vector2 pi = poly[i], pj = poly[j];
-            if ((pi.y > pt.y) != (pj.y > pt.y) &&
-                pt.x < (pj.x - pi.x) * (pt.y - pi.y) / (pj.y - pi.y) + pi.x)
+            Vector2 a = poly[i], b = poly[j];
+            if ((a.y > pt.y) != (b.y > pt.y) &&
+                pt.x < (b.x - a.x) * (pt.y - a.y) / (b.y - a.y) + a.x)
+            {
                 inside = !inside;
+            }
         }
         return inside;
     }
