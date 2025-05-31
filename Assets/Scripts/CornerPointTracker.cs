@@ -74,7 +74,7 @@ public class CornerPointTracker : MonoBehaviour
 
         for (int i = 0; i < points.Count; i++)
         {
-            positions[i] = new Vector3(points[i].x, points[i].y, 0);
+            positions[i] = new Vector3(points[i].x, points[i].y, -5f);
         }
 
         additionalLineRenderer.SetPositions(positions);

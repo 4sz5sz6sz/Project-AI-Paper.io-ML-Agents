@@ -89,7 +89,7 @@ public class PlayerController : MonoBehaviour
                     Debug.Log("📌 내 영역 안으로 들어옴 - 코너 추가 및 폐곡선 검사");
                     cornerTracker?.AddCorner(gridPosition);
                     loopDetector?.CheckLoop(cornerTracker);
-                    cornerTracker.DisplayCornersFor1Second(); // 디버깅용으로 출력하는건데작동 안됨..
+                    cornerTracker.DisplayCornersFor1Second();
                     trail?.ResetTrail(); // 궤적 초기화
                     trail.trailActive = false; // 궤적 그리기 비활성화
                 }
