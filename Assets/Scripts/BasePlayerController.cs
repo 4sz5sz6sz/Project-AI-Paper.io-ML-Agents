@@ -48,8 +48,11 @@ public abstract class BasePlayerController : MonoBehaviour
     // PlayerController.cs에서 컴포넌트 초기화 부분을 분리
     protected virtual void InitializeComponents()
     {
+        // 자신의 컴포넌트들은 GetComponent 사용
         trail = GetComponent<LineTrailWithCollision>();
         cornerTracker = GetComponent<CornerPointTracker>();
+
+        // 전역 매니저만 Find 사용
         loopDetector = FindFirstObjectByType<LoopDetector>();
         mapManager = FindFirstObjectByType<MapManager>();
     }

@@ -17,11 +17,13 @@ public class LineTrailWithCollision : MonoBehaviour
     private Vector3 lastDirection = Vector3.zero;
     private float playerHalfSize = 0.3f;
 
-    public Transform playerTransform; // Inspector에서 연결
+    private Transform playerTransform; // 자신의 Transform 사용
     public bool trailActive = false;  // 외부에서 true로 설정
     private bool collisionActive = false;
     void Start()
     {
+        playerTransform = transform; // 자신의 Transform 참조
+
         lineRenderer = GetComponent<LineRenderer>();
         edgeCollider = gameObject.AddComponent<EdgeCollider2D>();
 
