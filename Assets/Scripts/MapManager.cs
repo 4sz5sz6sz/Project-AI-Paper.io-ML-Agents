@@ -49,15 +49,31 @@ public class MapManager : MonoBehaviour
 
     public void ApplyCornerArea(List<Vector2Int> cornerPoints, int ownerValue)
     {
-        if (cornerPoints == null || cornerPoints.Count < 2) return; // 최소 2개의 점은 필요
+        if (cornerPoints == null || cornerPoints.Count < 2) return;
 
         // 시작점과 끝점 사이에 내 영역 내부의 점들을 찾아 추가
         var safeCornerPoints = CreateSafePolygon(cornerPoints, ownerValue);
 
-        // 내부 점 찾기
+        // 디버그 로그 추가
+        Debug.Log($"===== Safe Corner Points (총 {safeCornerPoints.Count}개) =====");
+        for (int i = 0; i < safeCornerPoints.Count; i++)
+        {
+            Debug.Log($"Point[{i}]: {safeCornerPoints[i]}");
+            if (i < safeCornerPoints.Count - 1)
+            {
+                Vector2Int next = safeCornerPoints[i + 1];
+                Debug.Log($"    -> 다음 점과의 차이: ({next.x - safeCornerPoints[i].x}, {next.y - safeCornerPoints[i].y})");
+            }
+        }
+        Debug.Log("=====================================");
+
+        // 1. 먼저 테두리 색칠
+        // ColorTrailPath(safeCornerPoints, ownerValue);
+
+        // 2. 내부 점 찾기
         Vector2Int start = FindInteriorPoint(safeCornerPoints);
 
-        // FloodFill로 영역 채우기
+        // 3. FloodFill로 내부 영역 채우기
         FloodFill(start, safeCornerPoints, ownerValue);
 
         if (tileRenderer != null)
@@ -68,23 +84,39 @@ public class MapManager : MonoBehaviour
 
     private List<Vector2Int> CreateSafePolygon(List<Vector2Int> originalPoints, int ownerValue)
     {
-        var result = new List<Vector2Int>(originalPoints);
+        if (originalPoints == null || originalPoints.Count < 2) return originalPoints;
 
-        Vector2Int start = originalPoints[0];
-        Vector2Int end = originalPoints[^1];
+        var result = new List<Vector2Int>();
 
-        List<Vector2Int> safePath = FindPathThroughOwnedArea(start, end, ownerValue);
-
-        if (safePath != null && safePath.Count > 0)
+        // 마지막 점을 제외한 모든 원본 점들을 순서대로 추가
+        for (int i = 0; i < originalPoints.Count - 1; i++)
         {
-            // 코너 트래커 찾아서 추가된 점들 표시
-            var cornerTracker = FindObjectOfType<CornerPointTracker>();
-            if (cornerTracker != null)
-            {
-                cornerTracker.ShowAdditionalPoints(safePath);
-            }
+            result.Add(originalPoints[i]);
+        }
 
-            result.AddRange(safePath);
+        // 마지막 점 추가
+        Vector2Int lastPoint = originalPoints[^1];
+        result.Add(lastPoint);
+
+        // 마지막 점에서 시작점으로 가는 경로 찾기
+        List<Vector2Int> safePath = FindPathThroughOwnedArea(lastPoint, originalPoints[0], ownerValue);
+
+        if (safePath != null && safePath.Count > 2)  // 시작점과 끝점을 제외한 중간 점들만
+        {
+            for (int i = 1; i < safePath.Count - 1; i++)
+            {
+                // 중복 점 체크
+                if (!result.Contains(safePath[i]))
+                {
+                    result.Add(safePath[i]);
+                }
+            }
+        }
+
+        Debug.Log("생성된 꼭짓점들 순서:");
+        for (int i = 0; i < result.Count; i++)
+        {
+            Debug.Log($"{i}번째 점: {result[i]}");
         }
 
         return result;
@@ -96,22 +128,26 @@ public class MapManager : MonoBehaviour
         var visited = new HashSet<Vector2Int>();
         var queue = new Queue<Vector2Int>();
         var parentMap = new Dictionary<Vector2Int, Vector2Int>();
-        var directionMap = new Dictionary<Vector2Int, Vector2Int>(); // 각 지점의 진행 방향 저장
+        var directionMap = new Dictionary<Vector2Int, Vector2Int>();
+
+        // 변수 추가
+        bool foundPath = false;
+        Vector2Int[] dirs = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
 
         queue.Enqueue(start);
         visited.Add(start);
+        path.Add(start); // 시작점 추가
 
-        Vector2Int[] dirs = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
-        bool foundPath = false;
-
+        // end 점은 나중에 추가하도록 변경
         while (queue.Count > 0)
         {
             Vector2Int current = queue.Dequeue();
 
-            if (current == end)
+            // end 점 바로 이전에 도달했는지 확인
+            if (Mathf.Abs(current.x - end.x) + Mathf.Abs(current.y - end.y) == 1)
             {
                 foundPath = true;
-                break;
+                break; // current = end 제거 (불필요)
             }
 
             foreach (var dir in dirs)
@@ -121,46 +157,30 @@ public class MapManager : MonoBehaviour
                 if (!InBounds(next) || visited.Contains(next))
                     continue;
 
+                // 내 영역인 타일만 통과
                 if (GetTile(next) == ownerValue)
                 {
                     queue.Enqueue(next);
                     visited.Add(next);
                     parentMap[next] = current;
-                    directionMap[next] = dir; // 진행 방향 저장
+                    directionMap[next] = dir;
                 }
             }
         }
 
         if (foundPath)
         {
-            Vector2Int current = end;
-            Vector2Int? lastDirection = null;
-
-            // 경로 역추적하면서 방향 전환점만 저장
-            while (parentMap.ContainsKey(current))
-            {
-                Vector2Int currentDirection = directionMap[current];
-
-                // 방향이 바뀌는 지점이거나 시작/끝점인 경우에만 추가
-                if (lastDirection == null || currentDirection != lastDirection || current == end || parentMap[current] == start)
-                {
-                    path.Add(current);
-                }
-
-                lastDirection = currentDirection;
-                current = parentMap[current];
-            }
-            path.Add(start); // 시작점 추가
-            path.Reverse();
-
-            Debug.Log($"찾은 경로의 꼭짓점 개수: {path.Count}");
+            // 경로를 찾은 경우에만 end 점 추가
+            path.Add(end); // 끝점 추가
+            Debug.Log($"경로 찾음 (총 {path.Count}개 점)");
             foreach (var point in path)
             {
-                Debug.Log($"꼭짓점: {point}");
+                Debug.Log($"경로점: {point}");
             }
+            return path;
         }
 
-        return path;
+        return new List<Vector2Int>(); // 경로를 찾지 못한 경우 빈 리스트 반환
     }
 
     private Vector2Int FindInteriorPoint(List<Vector2Int> polygon)
@@ -271,5 +291,49 @@ public class MapManager : MonoBehaviour
             }
         }
         return inside;
+    }
+
+    public void ColorTrailPath(List<Vector2Int> cornerPoints, int ownerValue)
+    {
+        if (cornerPoints == null || cornerPoints.Count < 2) return;
+
+        // 모든 연속된 두 점 사이의 경로를 색칠
+        for (int i = 0; i < cornerPoints.Count - 1; i++)
+        {
+            ColorLineBetweenPoints(cornerPoints[i], cornerPoints[i + 1], ownerValue);
+        }
+    }
+
+    private void ColorLineBetweenPoints(Vector2Int start, Vector2Int end, int ownerValue)
+    {
+        Vector2Int delta = new Vector2Int(
+            Mathf.Clamp(end.x - start.x, -1, 1),
+            Mathf.Clamp(end.y - start.y, -1, 1)
+        );
+
+        Vector2Int current = start;
+        SetTile(current, ownerValue); // 시작점 색칠
+
+        int iterations = 0;
+        while (current != end)
+        {
+            iterations++;
+
+            // 50회마다 현재 상태 출력
+            if (iterations % 50 == 0)
+            {
+                Debug.Log($"반복 횟수: {iterations}, 현재 위치: {current}, 목표 위치: {end}, delta: {delta}");
+            }
+
+            // 100회 초과시 강제 종료
+            if (iterations > 100)
+            {
+                Debug.LogError($"무한 루프 감지! start: {start}, end: {end}, current: {current}, delta: {delta}");
+                break;
+            }
+
+            current += delta;
+            SetTile(current, ownerValue);
+        }
     }
 }
