@@ -115,7 +115,7 @@ public class MapManager : MonoBehaviour
         if (safePath != null && safePath.Count > 0)
         {
             // 코너 트래커 찾아서 추가된 점들 표시
-            var cornerTracker = FindObjectOfType<CornerPointTracker>();
+            var cornerTracker = FindAnyObjectByType<CornerPointTracker>();
             if (cornerTracker != null)
             {
                 cornerTracker.ShowAdditionalPoints(safePath);
@@ -268,7 +268,7 @@ public class MapManager : MonoBehaviour
             foreach (var offset in cornerOffsets)
             {
                 Vector2 checkPoint = new Vector2(current.x + offset.x, current.y + offset.y);
-                if (!IsPointInPolygon(checkPoint, polygon))
+                if (!IsPointInPolygon(checkPoint, poly))
                 {
                     isInside = false;
                     break;
@@ -288,6 +288,8 @@ public class MapManager : MonoBehaviour
                 {
                     visited.Add(next);
                     queue.Enqueue(next);
+
+                }
             }
         }
     }
