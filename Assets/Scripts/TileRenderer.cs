@@ -99,6 +99,21 @@ public class TileRenderer : MonoBehaviour
         }
     }
 
+
+    public int GetPlayerTileCount(int playerId)
+    {
+        int count = 0;
+        for (int x = 0; x < mapManager.width; x++)
+        {
+            for (int y = 0; y < mapManager.height; y++)
+            {
+                if (mapManager.GetTile(new Vector2Int(x, y)) == playerId)
+                    count++;
+            }
+        }
+        return count;
+    }
+
     /// 타일 상태에 따른 색 반환
     private Color GetColorForState(int state)
     {

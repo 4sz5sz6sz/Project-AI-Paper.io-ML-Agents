@@ -26,7 +26,7 @@ public abstract class BasePlayerController : MonoBehaviour
     protected virtual void Start()
     {
         gridPosition = Vector2Int.RoundToInt(transform.position);
-        transform.position = (Vector2)gridPosition;
+        transform.position = new Vector3(gridPosition.x, gridPosition.y, -1f);
         targetPosition = transform.position;
 
         InitializeComponents();
@@ -48,8 +48,13 @@ public abstract class BasePlayerController : MonoBehaviour
     // PlayerController.cs에서 컴포넌트 초기화 부분을 분리
     protected virtual void InitializeComponents()
     {
-        // 자신의 컴포넌트들은 GetComponent 사용
-        trail = GetComponent<LineTrailWithCollision>();
+        // 자신의 컴포넌트들은 GetComponent 사용  s
+        // 🔧 자식 오브젝트 "TrailDrawer"에서 LineTrailWithCollision 가져오기
+        Transform trailObj = transform.Find("TrailDrawer");
+        if (trailObj != null)
+        {
+            trail = trailObj.GetComponent<LineTrailWithCollision>();
+        }
         cornerTracker = GetComponent<CornerPointTracker>();
 
         // 전역 매니저만 Find 사용
@@ -74,5 +79,23 @@ public abstract class BasePlayerController : MonoBehaviour
         // - 이동 처리
         // - 영역 진입/이탈 체크
         // - 궤적 활성화/비활성화
+    }
+
+    // 선을 밟았을 때 선의 주인을 죽이는 공통 로직
+    // 각 플레이어마다 on
+    protected void CheckTrailCollision(Collider2D other)
+    {
+        var trail = other.GetComponent<LineTrailWithCollision>();
+        if (trail == null || trail.cornerTracker == null) return;
+
+        int myId = cornerTracker.playerId; // ✅ safer
+        int trailOwner = trail.cornerTracker.playerId;
+
+
+        if (GameController.Instance != null)
+        {
+            Debug.Log($"💥 플레이어 {myId}가 플레이어 {trailOwner}의 선을 밟음 → {trailOwner} 죽음!");
+            GameController.Instance.KillPlayer(trailOwner); // 선의 주인을 죽임
+        }
     }
 }
