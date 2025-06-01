@@ -30,6 +30,15 @@ public class MapManager : MonoBehaviour
         for (int x = 0; x < 10; x++)
             for (int y = 0; y < 10; y++)
                 tileStates[x, y] = 1;
+
+        // 예시: 오른쪽 위 10x10 구역을 Player 2의 땅으로 설정
+        for (int x = 20; x < 30; x++)
+        {
+            for (int y = 20; y < 30; y++)
+            {
+                tileStates[x, y] = 2; // 2번 플레이어의 ID
+            }
+        }
     }
 
     void Start()
@@ -38,13 +47,53 @@ public class MapManager : MonoBehaviour
             tileRenderer.RedrawAllTiles();
     }
 
+    public void InitializePlayerScores()
+    {
+        Dictionary<int, int> scoreMap = new Dictionary<int, int>();
+
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                int owner = tileStates[x, y];
+                if (owner >= 1)
+                {
+                    if (!scoreMap.ContainsKey(owner))
+                        scoreMap[owner] = 0;
+                    scoreMap[owner]++;
+                }
+            }
+        }
+
+        foreach (var kvp in scoreMap)
+        {
+            int playerId = kvp.Key;
+            int count = kvp.Value;
+            GameController.Instance?.SetScore(playerId, count); // 점수 직접 설정
+            Debug.Log($"[초기 점수] 플레이어 {playerId}: {count}");
+        }
+    }
+
     public bool InBounds(Vector2Int pos)
         => pos.x >= 0 && pos.x < width && pos.y >= 0 && pos.y < height;
 
-    public void SetTile(Vector2Int pos, int value)
+    public void SetTile(Vector2Int pos, int newOwner)
     {
-        if (InBounds(pos))
-            tileStates[pos.x, pos.y] = value;
+        if (!InBounds(pos)) return;
+
+        int prevOwner = tileStates[pos.x, pos.y];
+        if (prevOwner == newOwner) return;  // 변화 없음
+
+        tileStates[pos.x, pos.y] = newOwner;
+
+        // 점수 처리
+        if (GameController.Instance != null)
+        {
+            if (prevOwner >= 1)
+                GameController.Instance.AddScore(prevOwner, -1); // 뺏김
+            if (newOwner >= 1)
+                GameController.Instance.AddScore(newOwner, +1);  // 점령
+        }
     }
 
     public int GetTile(Vector2Int pos)
@@ -77,18 +126,26 @@ public class MapManager : MonoBehaviour
         // 3) FloodFill
         // 시작점과 끝점 사이에 내 영역 내부의 점들을 찾아 추가
         var safeCornerPoints = CreateSafePolygon(cornerPoints, ownerValue);
+
+        //경게선 
+        PaintBoundary(safeCornerPoints, ownerValue);
         // 내부 점 찾기
         Vector2Int start = FindInteriorPoint(safeCornerPoints);
-
-
         FloodFill(start, safeCornerPoints, ownerValue);
 
 
 
-        // 4) 화면 갱신 + 전체 초록 개수
-        int after = (tileRenderer != null)
-            ? tileRenderer.RedrawAllTilesAndGetGreenCount()
-            : before;
+        // 4) 화면 갱신 + 플레이어 영역 개수 
+        int after = 0;
+        if (tileRenderer != null)
+        {
+            tileRenderer.RedrawAllTiles(); // 화면은 전체 갱신
+            after = tileRenderer.GetPlayerTileCount(ownerValue); // 각 플레이어 타일 개수만 계산
+        }
+        else
+        {
+            after = before;
+        }
 
         int addedCount = after - before;
 
@@ -98,9 +155,47 @@ public class MapManager : MonoBehaviour
 
         // 6) UI(점수) 업데이트
         if (GameController.Instance != null)
-            GameController.Instance.SetScore(after);
-
+            // GameController.Instance.SetScore(after);
+            //점수를 업데이트하는 부분, SetScore(플레이어id, 점수)
+            Debug.Log($"점수 갱신 시도: 플레이어 {ownerValue}, 점수 {after}");
+        GameController.Instance.SetScore(ownerValue, after);
         return addedCount;
+    }
+
+    private void PaintBoundary(List<Vector2Int> points, int ownerValue)
+    {
+        if (points == null || points.Count < 2) return;
+
+        for (int i = 0; i < points.Count - 1; i++)
+        {
+            Vector2Int start = points[i];
+            Vector2Int end = points[i + 1];
+            foreach (var p in GetLinePoints(start, end))
+            {
+                SetTile(p, ownerValue);
+            }
+        }
+    }
+
+    private IEnumerable<Vector2Int> GetLinePoints(Vector2Int p1, Vector2Int p2)
+    {
+        int x0 = p1.x, y0 = p1.y;
+        int x1 = p2.x, y1 = p2.y;
+
+        int dx = Mathf.Abs(x1 - x0);
+        int dy = -Mathf.Abs(y1 - y0);
+        int sx = x0 < x1 ? 1 : -1;
+        int sy = y0 < y1 ? 1 : -1;
+        int err = dx + dy;
+
+        while (true)
+        {
+            yield return new Vector2Int(x0, y0);
+            if (x0 == x1 && y0 == y1) break;
+            int e2 = 2 * err;
+            if (e2 >= dy) { err += dy; x0 += sx; }
+            if (e2 <= dx) { err += dx; y0 += sy; }
+        }
     }
 
     private List<Vector2Int> CreateSafePolygon(List<Vector2Int> originalPoints, int ownerValue)

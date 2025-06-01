@@ -1,13 +1,14 @@
-using UnityEngine;
 using TMPro;
+using UnityEngine;
+using System.Collections.Generic;
 
 public class GameController : MonoBehaviour
 {
     public static GameController Instance { get; private set; }
 
-    [SerializeField] private TextMeshProUGUI text;  // Inspector에 할당
+    private Dictionary<int, int> playerScores = new();
 
-    private int score = 0;
+    [SerializeField] private TextMeshProUGUI[] playerTexts;  // P1 ~ P4 UI 연결용
 
     void Awake()
     {
@@ -17,20 +18,62 @@ public class GameController : MonoBehaviour
 
     void Start()
     {
-        UpdateText();
+        // 시작 시 초기 점수 표시
+        if (MapManager.Instance != null)
+            MapManager.Instance.InitializePlayerScores();
     }
 
-    /// <summary>
-    /// 외부에서 “총 점수(총 초록 타일 개수)”를 설정할 때 호출
-    /// </summary>
-    public void SetScore(int total)
+    public void SetScore(int playerId, int score)
     {
-        score = total;
-        UpdateText();
+        playerScores[playerId] = score;
+
+        if (playerTexts != null && playerId >= 1 && playerId <= playerTexts.Length)
+        {
+            playerTexts[playerId - 1].text = $"P{playerId}: {score}";
+        }
     }
 
-    private void UpdateText()
+    public int GetScore(int playerId)
     {
-        text.text = "Score :" + score;
+        return playerScores.ContainsKey(playerId) ? playerScores[playerId] : 0;
+    }
+
+    public void AddScore(int playerId, int delta)
+    {
+        if (!playerScores.ContainsKey(playerId))
+            playerScores[playerId] = 0;
+
+        playerScores[playerId] += delta;
+
+        if (playerTexts != null && playerId >= 1 && playerId <= playerTexts.Length)
+        {
+            playerTexts[playerId - 1].text = $"P{playerId}: {playerScores[playerId]}";
+        }
+    }
+
+    public void KillPlayer(int playerId)
+    {
+        Debug.Log($"💀 플레이어 {playerId}가 사망했습니다.");
+
+        // 예: 플레이어 오브젝트 비활성화
+        GameObject player = FindPlayerById(playerId);
+        if (player != null)
+        {
+            // Destroy(player);
+        }
+
+        // 점수 초기화하거나 사망 처리 추가
+        SetScore(playerId, -1);
+    }
+
+    public GameObject FindPlayerById(int id)
+    {
+        BasePlayerController[] allPlayers = FindObjectsOfType<BasePlayerController>();
+        foreach (var player in allPlayers)
+        {
+            if (player.GetComponent<CornerPointTracker>()?.playerId == id)
+                return player.gameObject;
+        }
+        return null;
     }
 }

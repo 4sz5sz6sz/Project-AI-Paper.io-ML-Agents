@@ -20,14 +20,20 @@ public class LineTrailWithCollision : MonoBehaviour
     private Transform playerTransform; // 자신의 Transform 사용
     public bool trailActive = false;  // 외부에서 true로 설정
     private bool collisionActive = false;
+    //코너 트래커에 있는 playerId를 가져오기 위해 코너트래커를 가져오는 부분
+    public CornerPointTracker cornerTracker;
     void Start()
     {
         playerTransform = transform; // 자신의 Transform 참조
+        Debug.Log($"{cornerTracker.playerId}번 플레이어의 trail 위치: {playerTransform.position}");
 
         lineRenderer = GetComponent<LineRenderer>();
         edgeCollider = gameObject.AddComponent<EdgeCollider2D>();
 
         edgeCollider.isTrigger = true;
+
+        //코너트래커 가져옴
+        cornerTracker = transform.parent?.GetComponent<CornerPointTracker>();
 
         // ✅ 플레이어 색상 & 너비
         SpriteRenderer sr = playerTransform.GetComponent<SpriteRenderer>();
@@ -58,7 +64,7 @@ public class LineTrailWithCollision : MonoBehaviour
 
     void Update()
     {
-        if (!trailActive) return; // trail이 비활성화 상태라면 궤적 기록 안 함
+        if (!trailActive) return;
 
         Vector3 currentPosition = playerTransform.position;
         Vector3 direction = (currentPosition - lastPosition).normalized;
@@ -70,12 +76,24 @@ public class LineTrailWithCollision : MonoBehaviour
         if (distance >= minDistance)
         {
             lastPosition = currentPosition;
-            AddPoint(GetOffsetPoint(currentPosition, lastDirection * -1f)); // 이동 반대방향에 점 찍기
+
+            // ✅ 오프셋 위치 계산
+            Vector3 newPoint = GetOffsetPoint(currentPosition, lastDirection * -1f);
+
+            // ✅ 내 영역 안에 있는지 검사
+            Vector2Int tilePos = new Vector2Int(Mathf.FloorToInt(newPoint.x), Mathf.FloorToInt(newPoint.y));
+
+            if (MapManager.Instance == null || cornerTracker == null)
+                return; // 아직 준비 안 된 경우 아무 작업도 하지 않음
+            int owner = MapManager.Instance.GetTile(tilePos); // MapManager의 GetTile(Vector2Int pos)
+            if (owner != cornerTracker.playerId) // 내 영역이 아니면
+            {
+                AddPoint(newPoint); // 선 추가
+            }
         }
+
         if (points.Count >= 1 && !collisionActive)
-        {
             collisionActive = true;
-        }
     }
 
     // 플레이어 위치에서 이동 반대 방향으로 playerHalfSize만큼 떨어진 점 반환
@@ -83,7 +101,7 @@ public class LineTrailWithCollision : MonoBehaviour
     {
         Vector3 offset = oppositeDirection.normalized * playerHalfSize;
         Vector3 result = origin + offset;
-        result.z = 0f;
+        result.z = -1f;
         return result;
     }
 
@@ -129,4 +147,19 @@ public class LineTrailWithCollision : MonoBehaviour
         collisionActive = false;
     }
 
+    // 충돌선 보이도록 그려주는함수 (디버깅용)
+    // void OnDrawGizmos()
+    // {
+    //     if (edgeCollider == null || edgeCollider.points == null || edgeCollider.points.Length < 2)
+    //         return;
+
+    //     Gizmos.color = Color.yellow;
+
+    //     for (int i = 0; i < edgeCollider.points.Length - 1; i++)
+    //     {
+    //         Vector2 p1 = edgeCollider.transform.TransformPoint(edgeCollider.points[i]);
+    //         Vector2 p2 = edgeCollider.transform.TransformPoint(edgeCollider.points[i + 1]);
+    //         Gizmos.DrawLine(p1, p2);
+    //     }
+    // }
 }
