@@ -85,6 +85,9 @@ public abstract class BasePlayerController : MonoBehaviour
     // 각 플레이어마다 on
     protected void CheckTrailCollision(Collider2D other)
     {
+        float distance = Vector2.Distance(transform.position, other.transform.position);
+        if (distance > 1f) return; // 너무 멀면 무시
+        
         var trail = other.GetComponent<LineTrailWithCollision>();
         if (trail == null || trail.cornerTracker == null) return;
 
