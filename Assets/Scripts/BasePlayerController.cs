@@ -112,8 +112,11 @@ public abstract class BasePlayerController : MonoBehaviour
                 // 내 영역 밖으로 나갈 때 점 추가
                 if (wasInsideOwnedArea && !isInsideOwnedArea)
                 {
-                    Debug.Log("📌 내 영역을 벗어남 - 점 추가");
+                    Debug.Log("📌 내 영역을 벗어남 - 이전 점과 현재 점 추가");
+                    Vector2Int previousPos = gridPosition - direction; // 이전 위치 (내 땅)
+                    cornerTracker?.AddCorner(previousPos);            // 이전 점 추가
                     cornerTracker?.AddCorner(gridPosition);
+                    Debug.Log($"추가된 점들: 이전=({previousPos.x}, {previousPos.y}), 현재=({gridPosition.x}, {gridPosition.y})");
                     if (trail != null) trail.trailActive = true;
                 }
 
@@ -123,7 +126,7 @@ public abstract class BasePlayerController : MonoBehaviour
                     Debug.Log("📌 내 영역 안으로 들어옴 - 코너 추가 및 폐곡선 검사");
                     cornerTracker?.AddCorner(gridPosition);
                     loopDetector?.CheckLoop(cornerTracker);
-                    cornerTracker?.DisplayCornersFor1Second();
+                    // cornerTracker?.DisplayCornersFor1Second();
                     trail?.ResetTrail();
                     if (trail != null) trail.trailActive = false;
                 }
