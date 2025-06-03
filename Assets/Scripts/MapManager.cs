@@ -200,23 +200,36 @@ public class MapManager : MonoBehaviour
 
     private List<Vector2Int> CreateSafePolygon(List<Vector2Int> originalPoints, int ownerValue)
     {
-        var result = new List<Vector2Int>(originalPoints);
+        var result = new List<Vector2Int>();
+        
+        // 1. 외부 경로 추가 (출발 -> 도착)
+        result.AddRange(originalPoints);
 
-        Vector2Int start = originalPoints[0];
-        Vector2Int end = originalPoints[^1];
-
+        // 2. 내부 경로 찾기 (도착 -> 출발)
+        Vector2Int start = originalPoints[^1];  // 도착점
+        Vector2Int end = originalPoints[0];     // 출발점
+        
         List<Vector2Int> safePath = FindPathThroughOwnedArea(start, end, ownerValue);
 
         if (safePath != null && safePath.Count > 0)
         {
-            // 코너 트래커 찾아서 추가된 점들 표시
+            // 코너 트래커에 추가된 점들 표시
             var cornerTracker = FindAnyObjectByType<CornerPointTracker>();
             if (cornerTracker != null)
             {
                 cornerTracker.ShowAdditionalPoints(safePath);
             }
 
+            // 3. 내부 경로 추가 (도착 -> 출발)
             result.AddRange(safePath);
+        }
+
+        // 디버그 로그
+        Debug.Log("완성된 폐곡선 경로:");
+        for (int i = 0; i < result.Count; i++)
+        {
+            Debug.Log($"점 {i}: {result[i]} " + 
+                (i < originalPoints.Count ? "(외부 경로)" : "(내부 경로)"));
         }
 
         return result;
@@ -230,6 +243,7 @@ public class MapManager : MonoBehaviour
         var parentMap = new Dictionary<Vector2Int, Vector2Int>();
         var directionMap = new Dictionary<Vector2Int, Vector2Int>(); // 각 지점의 진행 방향 저장
 
+        Debug.Log($"경로 탐색 시작: {start} → {end}, 소유자: {ownerValue}");
         queue.Enqueue(start);
         visited.Add(start);
 
@@ -253,7 +267,7 @@ public class MapManager : MonoBehaviour
                 if (!InBounds(next) || visited.Contains(next))
                     continue;
 
-                if (GetTile(next) == ownerValue)
+                if (GetTile(next) == ownerValue || end == next) // 소유 영역이거나 도착점인 경우
                 {
                     queue.Enqueue(next);
                     visited.Add(next);
@@ -262,6 +276,10 @@ public class MapManager : MonoBehaviour
                 }
             }
         }
+
+        Debug.Log(foundPath
+            ? $"경로 탐색 성공: {start} → {end}"
+            : $"경로 탐색 실패: {start} → {end}");
 
         if (foundPath)
         {
