@@ -27,18 +27,23 @@ public class MapManager : MonoBehaviour
 
         // 맵 상태 초기화
         tileStates = new int[width, height];
+        
+        // Player 1의 땅 (왼쪽 아래 10x10)
         for (int x = 0; x < 10; x++)
             for (int y = 0; y < 10; y++)
                 tileStates[x, y] = 1;
 
-        // 예시: 오른쪽 위 10x10 구역을 Player 2의 땅으로 설정
+        // Player 2의 땅 (오른쪽 위 10x10)
         for (int x = 20; x < 30; x++)
-        {
             for (int y = 20; y < 30; y++)
-            {
-                tileStates[x, y] = 2; // 2번 플레이어의 ID
-            }
-        }
+                tileStates[x, y] = 2;
+
+        // Player 3의 땅 (왼쪽 위 10x10) 추가
+        for (int x = 0; x < 10; x++)
+            for (int y = 20; y < 30; y++)
+                tileStates[x, y] = 3;
+
+        
     }
 
     void Start()
