@@ -20,7 +20,7 @@ public abstract class BasePlayerController : MonoBehaviour
     protected CornerPointTracker cornerTracker; // private CornerPointTracker cornerTracker;
     protected LoopDetector loopDetector;     // private LoopDetector loopDetector;
     protected MapManager mapManager;          // private MapManager mapManager;
-    public bool wasInsideOwnedArea;        // private bool wasInsideOwnedArea = false;
+    public bool wasInsideOwnedArea = false;        // private bool wasInsideOwnedArea = false;
 
     // PlayerController.cs의 Start() 함수에 대응
     protected virtual void Start()
@@ -42,7 +42,7 @@ public abstract class BasePlayerController : MonoBehaviour
             }
         }
 
-        wasInsideOwnedArea = mapManager.GetTile(gridPosition) == cornerTracker.playerId;
+        // wasInsideOwnedArea = mapManager.GetTile(gridPosition) == cornerTracker.playerId;
     }
 
     // PlayerController.cs에서 컴포넌트 초기화 부분을 분리
@@ -74,11 +74,63 @@ public abstract class BasePlayerController : MonoBehaviour
     // PlayerController.cs의 이동 처리 로직을 분리
     protected virtual void HandleMovement()
     {
-        // Update() 내부의 이동 관련 코드
-        // - 방향 전환 체크
-        // - 이동 처리
-        // - 영역 진입/이탈 체크
-        // - 궤적 활성화/비활성화
+        HandleInput();
+
+        // 방향이 바뀔 때만 코너 저장
+        if (!isMoving && queuedDirection != Vector2Int.zero && queuedDirection != -direction)
+        {
+            // 내 영역 밖에 있을 때만 코너 저장
+            if (direction != Vector2Int.zero && queuedDirection != direction && !wasInsideOwnedArea)
+            {
+                cornerTracker?.AddCorner(gridPosition);
+                Debug.Log($"현재 코너 점 개수: {cornerTracker?.GetPoints().Count}");
+            }
+
+            direction = queuedDirection;
+            gridPosition += direction;
+            targetPosition = new Vector3(gridPosition.x, gridPosition.y, -2f);
+            isMoving = true;
+
+            // 내 영역 밖에 있을 때만 궤적 활성화
+            if (trail != null && !trail.trailActive && !wasInsideOwnedArea)
+                trail.trailActive = true;
+        }
+
+        // 이동 처리
+        if (isMoving)
+        {
+            transform.position = Vector3.MoveTowards(transform.position, targetPosition, moveSpeed * Time.deltaTime);
+
+            if (Vector3.Distance(transform.position, targetPosition) < 0.01f)
+            {
+                transform.position = targetPosition;
+                isMoving = false;
+
+                int currentTile = mapManager.GetTile(gridPosition);
+                bool isInsideOwnedArea = currentTile == cornerTracker.playerId;
+
+                // 내 영역 밖으로 나갈 때 점 추가
+                if (wasInsideOwnedArea && !isInsideOwnedArea)
+                {
+                    Debug.Log("📌 내 영역을 벗어남 - 점 추가");
+                    cornerTracker?.AddCorner(gridPosition);
+                    if (trail != null) trail.trailActive = true;
+                }
+
+                // 내 영역 안으로 들어올 때 코너 추가 및 폐곡선 검사
+                if (!wasInsideOwnedArea && isInsideOwnedArea)
+                {
+                    Debug.Log("📌 내 영역 안으로 들어옴 - 코너 추가 및 폐곡선 검사");
+                    cornerTracker?.AddCorner(gridPosition);
+                    loopDetector?.CheckLoop(cornerTracker);
+                    cornerTracker?.DisplayCornersFor1Second();
+                    trail?.ResetTrail();
+                    if (trail != null) trail.trailActive = false;
+                }
+
+                wasInsideOwnedArea = isInsideOwnedArea;
+            }
+        }
     }
 
     // 선을 밟았을 때 선의 주인을 죽이는 공통 로직

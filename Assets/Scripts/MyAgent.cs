@@ -18,6 +18,14 @@ public class MyAgent : Agent
         Vector2Int.left   // 3
     };
 
+    void Start()
+    {
+        if (mapManager == null)
+            mapManager = MapManager.Instance;
+        if (mapManager == null)
+            Debug.LogError("MyAgent: Start()에서도 MapManager.Instance를 찾지 못했습니다!");
+    }
+
     // 에피소드가 시작될 때 호출됩니다. 초기화가 필요한 경우 이곳에서 처리합니다.
     public override void OnEpisodeBegin()
     {
@@ -58,23 +66,9 @@ public class MyAgent : Agent
     public override void Initialize()
     {
         controller = GetComponent<AIPlayerController>();
-        if (controller == null)
-        {
-            Debug.LogError("MyAgent: AIPlayerController 컴포넌트를 찾을 수 없습니다! Agent와 동일한 GameObject에 있어야 합니다.");
-        }
-
-        // GameController와 MapManager 참조 가져오기
         gameManager = GameController.Instance;
-        if (gameManager == null)
-        {
-            Debug.LogError("MyAgent: Scene에서 GameController.Instance를 찾을 수 없습니다!");
-        }
 
-        mapManager = MapManager.Instance;
-        if (mapManager == null)
-        {
-            Debug.LogError("MyAgent: Scene에서 MapManager.Instance를 찾을 수 없습니다!");
-        }
+    
     }
 
     // 에이전트가 환경에 대해 관찰하는 데이터를 수집하는 곳입니다.

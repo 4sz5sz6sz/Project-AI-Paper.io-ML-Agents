@@ -5,6 +5,16 @@ public class LoopDetector : MonoBehaviour
 {
     public MapManager mapManager;
 
+    void Start()
+    {
+        mapManager = MapManager.Instance;
+        if (mapManager == null)
+        {
+            Debug.LogError("LoopDetector: MapManager.Instance를 찾을 수 없습니다!");
+            return;
+        }
+    }
+
     public void CheckLoop(CornerPointTracker tracker)
     {
         var points = tracker.GetPoints();
