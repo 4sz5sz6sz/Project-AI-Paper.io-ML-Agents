@@ -12,7 +12,7 @@ public abstract class BasePlayerController : MonoBehaviour
     protected Vector2Int gridPosition;        // private Vector2Int gridPosition;
     public Vector2Int direction;           // private Vector2Int direction = Vector2Int.zero; // protected에서 public으로 변경
     protected Vector2Int queuedDirection;     // private Vector2Int queuedDirection = Vector2Int.zero;
-    protected bool isMoving;                  // private bool isMoving = false;
+    public bool isMoving;                  // private bool isMoving = false;
     protected Vector3 targetPosition;         // private Vector3 targetPosition;
 
     // PlayerController.cs의 컴포넌트 참조들
@@ -20,7 +20,7 @@ public abstract class BasePlayerController : MonoBehaviour
     protected CornerPointTracker cornerTracker; // private CornerPointTracker cornerTracker;
     protected LoopDetector loopDetector;     // private LoopDetector loopDetector;
     protected MapManager mapManager;          // private MapManager mapManager;
-    protected bool wasInsideOwnedArea;        // private bool wasInsideOwnedArea = false;
+    public bool wasInsideOwnedArea;        // private bool wasInsideOwnedArea = false;
 
     // PlayerController.cs의 Start() 함수에 대응
     protected virtual void Start()

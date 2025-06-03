@@ -3,7 +3,9 @@ using UnityEngine;
 public class AIPlayerController : BasePlayerController
 {
     private MyAgent agent;
-
+    // 플레이어 ID를 추가 (Inspector에서 설정하거나 코드에서 할당)
+    [Tooltip("이 AI 플레이어의 고유 ID (GameController와 MapManager에서 사용)")]
+    public int playerID; // <--- 이 줄을 추가합니다.
     protected override void Start()
     {
         base.Start();
