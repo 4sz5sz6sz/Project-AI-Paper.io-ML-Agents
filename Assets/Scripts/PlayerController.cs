@@ -60,11 +60,14 @@ public class PlayerController : BasePlayerController
                 int currentTile = mapManager.GetTile(gridPosition);
                 bool isInsideOwnedArea = currentTile == cornerTracker.playerId;
 
-                // 내 영역 밖으로 나갈 때 점 추가
+                // 내 영역 밖으로 나갈 때 두 점 추가
                 if (wasInsideOwnedArea && !isInsideOwnedArea)
                 {
-                    Debug.Log("📌 내 영역을 벗어남 - 점 추가");
-                    cornerTracker?.AddCorner(gridPosition);
+                    Debug.Log("📌 내 영역을 벗어남 - 이전 점과 현재 점 추가");
+                    Vector2Int previousPos = gridPosition - direction; // 이전 위치 (내 땅)
+                    cornerTracker?.AddCorner(previousPos);            // 이전 점 추가
+                    cornerTracker?.AddCorner(gridPosition);           // 현재 점 추가
+                    Debug.Log($"추가된 점들: 이전=({previousPos.x}, {previousPos.y}), 현재=({gridPosition.x}, {gridPosition.y})");
                     trail.trailActive = true;
                 }
 
@@ -74,7 +77,7 @@ public class PlayerController : BasePlayerController
                     Debug.Log("📌 내 영역 안으로 들어옴 - 코너 추가 및 폐곡선 검사");
                     cornerTracker?.AddCorner(gridPosition);
                     loopDetector?.CheckLoop(cornerTracker);
-                    cornerTracker.DisplayCornersFor1Second();
+                    // cornerTracker.DisplayCornersFor1Second();
                     trail?.ResetTrail();
                     trail.trailActive = false;
                 }
@@ -86,6 +89,9 @@ public class PlayerController : BasePlayerController
 
     void OnTriggerEnter2D(Collider2D other)
     {
+        float distance = Vector3.Distance(transform.position, other.transform.position);
+        if (distance > 1f) return; // 너무 멀리 떨어진 오브젝트는 무시
+
         Debug.Log("✅ 트리거 작동함!");
 
         // 충돌된 오브젝트 이름 출력
