@@ -49,7 +49,7 @@ public class MyAgent : Agent
         // 임시로 현재 위치를 유지하거나, 고정된 위치로 설정할 수 있습니다.
         // 예시: transform.localPosition = new Vector3(0, 0, 0); // 적절한 시작 위치로 변경 필요
         // AIPlayerController가 스스로 초기 위치를 설정하도록 할 수도 있습니다.
-        Debug.Log("MyAgent: 에이전트 시작 위치를 재설정하지 않습니다. AIPlayerController에 맡기거나 수동으로 설정해야 합니다.");
+        // Debug.Log("MyAgent: 에이전트 시작 위치를 재설정하지 않습니다. AIPlayerController에 맡기거나 수동으로 설정해야 합니다.");
 
         // 3. 컨트롤러의 playerID가 유효한지 확인 (보상 계산 시 사용)
         if (controller == null || controller.playerID <= 0)
@@ -147,6 +147,7 @@ public class MyAgent : Agent
     // 에이전트가 선택한 행동을 기반으로 보상을 계산하거나 환경을 업데이트하는 곳입니다.
     public override void OnActionReceived(ActionBuffers actions)
     {
+
         // Discrete action을 방향으로 변환 (0: 상, 1: 우, 2: 하, 3: 좌)
         int action = actions.DiscreteActions[0];
 

@@ -39,6 +39,15 @@ public class MapManager : MonoBehaviour
                 tileStates[x, y] = 2; // 2번 플레이어의 ID
             }
         }
+
+                // 예시: 오른쪽 위 10x10 구역을 Player 2의 땅으로 설정
+        for (int x = 30; x < 40; x++)
+        {
+            for (int y = 20; y < 30; y++)
+            {
+                tileStates[x, y] = 3; // 2번 플레이어의 ID
+            }
+        }
     }
 
     void Start()
@@ -161,6 +170,7 @@ public class MapManager : MonoBehaviour
         GameController.Instance.SetScore(ownerValue, after);
         return addedCount;
     }
+
 
     private void PaintBoundary(List<Vector2Int> points, int ownerValue)
     {

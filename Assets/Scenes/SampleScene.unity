@@ -225,7 +225,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   moveSpeed: 15
-  isMainPlayer: 0
+  isMainPlayer: 1
   direction: {x: 0, y: 0}
 --- !u!50 &207510093
 Rigidbody2D:
@@ -1111,7 +1111,6 @@ GameObject:
   - component: {fileID: 980738031}
   - component: {fileID: 980738030}
   - component: {fileID: 980738029}
-  - component: {fileID: 980738028}
   - component: {fileID: 980738027}
   m_Layer: 0
   m_Name: Player2
@@ -1133,25 +1132,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   moveSpeed: 15
-  isMainPlayer: 1
+  isMainPlayer: 0
   direction: {x: 0, y: 0}
---- !u!114 &980738028
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 980738026}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7b0ba52b027b9844c9e0e7518fb81b82, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  minDistance: 0.1
-  lineWidth: 0.2
-  trailAlpha: 0.5
-  trailActive: 1
-  cornerTracker: {fileID: 980738029}
 --- !u!114 &980738029
 MonoBehaviour:
   m_ObjectHideFlags: 0
