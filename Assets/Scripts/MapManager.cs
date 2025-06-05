@@ -15,6 +15,8 @@ public class MapManager : MonoBehaviour
     [Tooltip("TileRenderer 참조 (Inspector에서 할당)")]
     public TileRenderer tileRenderer;
 
+    private const int INITIAL_TERRITORY_SIZE = 10;  // 초기 영역 크기
+
     void Awake()
     {
         // 싱글톤 설정
@@ -27,33 +29,45 @@ public class MapManager : MonoBehaviour
 
         // 맵 상태 초기화
         tileStates = new int[width, height];
-        for (int x = 0; x < 10; x++)
-            for (int y = 0; y < 10; y++)
-                tileStates[x, y] = 1;
 
-        // 예시: 오른쪽 위 10x10 구역을 Player 2의 땅으로 설정
-        for (int x = 20; x < 30; x++)
-        {
-            for (int y = 20; y < 30; y++)
-            {
-                tileStates[x, y] = 2; // 2번 플레이어의 ID
-            }
-        }
-
-                // 예시: 오른쪽 위 10x10 구역을 Player 2의 땅으로 설정
-        for (int x = 30; x < 40; x++)
-        {
-            for (int y = 20; y < 30; y++)
-            {
-                tileStates[x, y] = 3; // 2번 플레이어의 ID
-            }
-        }
+      
+        // Start()로 이동하여 플레이어들이 모두 생성된 후 영역 초기화
     }
 
     void Start()
     {
+        // 모든 플레이어 찾기
+        BasePlayerController[] players = FindObjectsByType<BasePlayerController>(FindObjectsSortMode.None);
+        
+        foreach (var player in players)
+        {
+            Vector2Int playerPos = Vector2Int.RoundToInt(player.transform.position);
+            InitializePlayerTerritory(playerPos, player.GetComponent<CornerPointTracker>()?.playerId ?? 1);
+        }
+
+        // TileRenderer 업데이트
         if (tileRenderer != null)
             tileRenderer.RedrawAllTiles();
+    }
+
+    private void InitializePlayerTerritory(Vector2Int center, int playerId)
+    {
+        int halfSize = INITIAL_TERRITORY_SIZE / 2;
+        int startX = Mathf.Clamp(center.x - halfSize, 0, width - INITIAL_TERRITORY_SIZE);
+        int startY = Mathf.Clamp(center.y - halfSize, 0, height - INITIAL_TERRITORY_SIZE);
+
+        Debug.Log($"플레이어 {playerId}의 초기 영역 설정: 중심점({center.x}, {center.y})");
+
+        for (int x = startX; x < startX + INITIAL_TERRITORY_SIZE; x++)
+        {
+            for (int y = startY; y < startY + INITIAL_TERRITORY_SIZE; y++)
+            {
+                if (x >= 0 && x < width && y >= 0 && y < height)
+                {
+                    tileStates[x, y] = playerId;
+                }
+            }
+        }
     }
 
     public void InitializePlayerScores()
