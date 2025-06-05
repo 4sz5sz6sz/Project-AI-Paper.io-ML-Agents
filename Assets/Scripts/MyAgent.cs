@@ -9,6 +9,8 @@ public class MyAgent : Agent
     private AIPlayerController controller;
     private GameController gameManager; // GameController 참조
     private MapManager mapManager;     // MapManager 참조
+                                       // 클래스 상단에 관측 반경 설정 (5x5이면 radius=2, 7x7이면 radius=3)
+    private int observationRadius = 3; // n=5 이면 2, n=7이면 3, n=9이면 4, 2n+1 x 2n+1 크기의 사각형 관측
 
     private Vector2Int[] possibleActions = new Vector2Int[]
     {
@@ -68,7 +70,7 @@ public class MyAgent : Agent
         controller = GetComponent<AIPlayerController>();
         gameManager = GameController.Instance;
 
-    
+
     }
 
     // 에이전트가 환경에 대해 관찰하는 데이터를 수집하는 곳입니다.
@@ -91,6 +93,7 @@ public class MyAgent : Agent
             sensor.AddObservation(0f); // y
         }
 
+
         // 3. 주변 타일 상태 (MapManager로부터 가져옴)
         // 에이전트 위치를 그리드 좌표로 변환 (예시: 0.5f를 더하여 타일의 중심점 사용)
         if (mapManager != null)
@@ -100,9 +103,9 @@ public class MyAgent : Agent
 
             // 주변 5x5 그리드의 타일 상태를 관측
             // (좌측 하단부터 우측 상단까지 순회)
-            for (int y = -2; y <= 2; y++)
+            for (int y = -observationRadius; y <= observationRadius; y++)
             {
-                for (int x = -2; x <= 2; x++)
+                for (int x = -observationRadius; x <= observationRadius; x++)
                 {
                     Vector2Int tilePos = new Vector2Int(agentGridX + x, agentGridY + y);
                     if (mapManager.InBounds(tilePos))
@@ -149,8 +152,9 @@ public class MyAgent : Agent
     {
 
         // Discrete action을 방향으로 변환 (0: 상, 1: 우, 2: 하, 3: 좌)
-        int action = actions.DiscreteActions[0];
-
+        // int action = actions.DiscreteActions[0];
+        int action = Random.Range(0, 4); // 임시로 랜덤 행동을 사용
+        Debug.Log($"MyAgent: 받은 행동 값 = {action}");
         // 유효한 행동인지 확인
         if (controller != null && action >= 0 && action < possibleActions.Length)
         {
