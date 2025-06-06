@@ -30,7 +30,7 @@ public class MyAgent : Agent
         controller = GetComponent<AIPlayerController>();
         gameManager = GameController.Instance;
 
-        Debug.Log("[MyAgent] Initialize 완료 - 계층적 관찰 시스템 (85차원 벡터)");
+        Debug.Log("[MyAgent] Initialize 완료 - 확장된 관찰 시스템 (700+ 차원 벡터)");
     }
     public override void OnEpisodeBegin()
     {
@@ -93,13 +93,12 @@ public class MyAgent : Agent
                 }
             }
         }
-    }    // 확장된 계층적 관찰: 85차원 (Unity Inspector 설정과 일치)
+    }    // 확장된 고해상도 관찰: 700+ 차원 (Unity Inspector 설정 필요)
     public override void CollectObservations(VectorSensor sensor)
-    {
-        if (controller == null || mapManager == null)
+    {        if (controller == null || mapManager == null)
         {
-            // 기본값으로 채워서 관찰 차원 맞추기
-            for (int i = 0; i < 85; i++) sensor.AddObservation(0f); // 총 85차원
+            // 기본값으로 채워서 관찰 차원 맞추기 (총 1328차원)
+            for (int i = 0; i < 1328; i++) sensor.AddObservation(0f);
             return;
         }
 
@@ -117,38 +116,33 @@ public class MyAgent : Agent
         float currentScore = gameManager?.GetScore(myPlayerID) ?? 0f;
         sensor.AddObservation(currentScore / 1250f); // 맵 전체 타일 수로 정규화
 
-        // 2. 로컬 5x5 관찰 (25차원) - 즉시 위험/기회
-        for (int y = -2; y <= 2; y++)
+        // 2. 전체 맵 관찰 (50x25 = 1250차원) - 모든 타일 상태
+        for (int y = 0; y < 25; y++)
         {
-            for (int x = -2; x <= 2; x++)
+            for (int x = 0; x < 50; x++)
             {
-                Vector2Int tilePos = new Vector2Int(agentGridX + x, agentGridY + y);
-                if (mapManager.InBounds(tilePos))
-                {
-                    int tileOwner = mapManager.GetTile(tilePos);
-                    // 상대방 영역(-1), 중립(0), 내 영역(1)로 정규화
-                    float normalizedTile = (tileOwner == myPlayerID) ? 1f :
-                                         (tileOwner == 0) ? 0f : -1f;
-                    sensor.AddObservation(normalizedTile);
-                }
-                else
-                {
-                    sensor.AddObservation(-1f); // 경계 밖
-                }
+                Vector2Int tilePos = new Vector2Int(x, y);
+                int tileOwner = mapManager.GetTile(tilePos);
+                // 상대방 영역(-1), 중립(0), 내 영역(1)로 정규화
+                float normalizedTile = (tileOwner == myPlayerID) ? 1f :
+                                     (tileOwner == 0) ? 0f : -1f;
+                sensor.AddObservation(normalizedTile);
             }
         }
 
-        // 3. 추가 정보 (1차원) - 위험도
-        float dangerLevel = CalculateLocalDanger(agentGridX, agentGridY, myPlayerID);
-        sensor.AddObservation(dangerLevel);
+        // 3. **중요!** 근접 3x3 영역 (9차원) - 생존에 핵심적인 정보
+        AddCriticalProximityObservations(sensor, agentGridX, agentGridY, myPlayerID);
 
-        // 4. 전략적 관찰 (39차원) - 방향별 기회 + 경계 거리 + 영역 정보
+        // 4. 즉시 위험 감지 (10차원) - 꼬리 충돌 방지
+        AddImmediateDangerObservations(sensor, agentGridX, agentGridY, myPlayerID);
+
+        // 5. 전략적 관찰 (39차원) - 방향별 기회 + 경계 거리 + 영역 정보
         AddStrategicObservations(sensor, agentGridX, agentGridY, myPlayerID);
 
-        // 5. 상대방 정보 (15차원) - 최대 3명 상대방
+        // 6. 상대방 정보 (15차원) - 최대 3명 상대방
         AddOpponentObservations(sensor, agentGridX, agentGridY, myPlayerID);
 
-        Debug.Log($"[MyAgent] 관찰 완료 - 총 85차원 (5기본 + 25로컬 + 1위험 + 39전략 + 15상대방)");
+        Debug.Log($"[MyAgent] 관찰 완료 - 총 1328차원 (5기본 + 1250전체맵 + 9근접 + 10위험 + 39전략 + 15상대방)");
     }
 
     private float CalculateLocalDanger(int myX, int myY, int myPlayerID)
@@ -175,6 +169,183 @@ public class MyAgent : Agent
                 }
             }
         }        return dangerCount > 0 ? Mathf.Clamp01(danger / 10f) : 0f;
+    }
+
+    // **중요!** 근접 3x3 영역 - 생존에 가장 핵심적인 정보 (9차원)
+    private void AddCriticalProximityObservations(VectorSensor sensor, int myX, int myY, int myPlayerID)
+    {
+        // 3x3 영역의 각 타일을 개별적으로 관찰 (생존에 직접적 영향)
+        for (int y = -1; y <= 1; y++)
+        {
+            for (int x = -1; x <= 1; x++)
+            {
+                Vector2Int checkPos = new Vector2Int(myX + x, myY + y);
+                
+                float criticalValue = 0f;
+                
+                if (!mapManager.InBounds(checkPos))
+                {
+                    criticalValue = -2f; // 경계 밖 - 매우 위험
+                }
+                else
+                {
+                    // 타일 소유권 확인
+                    int tileOwner = mapManager.GetTile(checkPos);
+                    int trailOwner = mapManager.GetTrail(checkPos);
+                    
+                    // **생존 핵심 로직**: 내 궤적이 있으면 절대 위험
+                    if (trailOwner == myPlayerID)
+                    {
+                        criticalValue = -3f; // 내 궤적 - 절대 가면 안됨!
+                    }
+                    else if (trailOwner != 0 && trailOwner != myPlayerID)
+                    {
+                        criticalValue = -1f; // 다른 플레이어 궤적 - 위험
+                    }
+                    else if (tileOwner == myPlayerID)
+                    {
+                        criticalValue = 2f; // 내 영역 - 안전
+                    }
+                    else if (tileOwner == 0)
+                    {
+                        criticalValue = 1f; // 중립 - 확장 기회
+                    }
+                    else
+                    {
+                        criticalValue = -0.5f; // 다른 플레이어 영역
+                    }
+                }
+                
+                sensor.AddObservation(criticalValue);
+            }
+        }
+    }
+
+    // 즉시 위험 감지 - 다음 스텝에서 일어날 수 있는 모든 위험 (10차원)
+    private void AddImmediateDangerObservations(VectorSensor sensor, int myX, int myY, int myPlayerID)
+    {
+        // 4방향 이동 시 즉시 위험도
+        Vector2Int[] directions = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
+        
+        for (int i = 0; i < 4; i++)
+        {
+            Vector2Int nextPos = new Vector2Int(myX + directions[i].x, myY + directions[i].y);
+            
+            float immediateRisk = 0f;
+            
+            if (!mapManager.InBounds(nextPos))
+            {
+                immediateRisk = 1f; // 경계로 이동 - 즉시 사망
+            }
+            else
+            {
+                int trail = mapManager.GetTrail(nextPos);
+                if (trail == myPlayerID)
+                {
+                    immediateRisk = 1f; // 내 궤적으로 이동 - 즉시 사망
+                }
+                else if (trail != 0)
+                {
+                    immediateRisk = 0.8f; // 다른 궤적으로 이동 - 위험
+                }
+                else
+                {
+                    // 안전한 이동이지만 주변 확인
+                    int nearbyTrails = 0;
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        for (int dy = -1; dy <= 1; dy++)
+                        {
+                            Vector2Int checkPos = new Vector2Int(nextPos.x + dx, nextPos.y + dy);
+                            if (mapManager.InBounds(checkPos))
+                            {
+                                int checkTrail = mapManager.GetTrail(checkPos);
+                                if (checkTrail == myPlayerID) nearbyTrails++;
+                            }
+                        }
+                    }
+                    immediateRisk = Mathf.Clamp01(nearbyTrails / 8f); // 주변 궤적 밀도
+                }
+            }
+            
+            sensor.AddObservation(immediateRisk);
+        }
+
+        // 추가 위험 지표들 (6차원)
+        
+        // 현재 위치가 내 영역인지
+        Vector2Int currentPos = new Vector2Int(myX, myY);
+        bool inMyTerritory = mapManager.InBounds(currentPos) && 
+                           mapManager.GetTile(currentPos) == myPlayerID;
+        sensor.AddObservation(inMyTerritory ? 0f : 1f); // 영역 밖이면 위험
+
+        // 내 궤적의 총 길이 (위험도 증가)
+        int trailLength = 0;
+        for (int x = 0; x < 50; x++)
+        {
+            for (int y = 0; y < 25; y++)
+            {
+                if (mapManager.GetTrail(new Vector2Int(x, y)) == myPlayerID)
+                    trailLength++;
+            }
+        }
+        sensor.AddObservation(Mathf.Clamp01(trailLength / 100f)); // 정규화
+
+        // 가장 가까운 내 궤적까지의 거리
+        float closestTrailDistance = 999f;
+        for (int x = 0; x < 50; x++)
+        {
+            for (int y = 0; y < 25; y++)
+            {
+                if (mapManager.GetTrail(new Vector2Int(x, y)) == myPlayerID)
+                {
+                    float distance = Vector2.Distance(new Vector2(myX, myY), new Vector2(x, y));
+                    closestTrailDistance = Mathf.Min(closestTrailDistance, distance);
+                }
+            }
+        }
+        sensor.AddObservation(Mathf.Clamp01(closestTrailDistance / 20f)); // 정규화
+
+        // 현재 방향으로 계속 가면 위험한지
+        Vector2Int currentDirection = controller.direction;
+        Vector2Int projectedPos = new Vector2Int(myX + currentDirection.x, myY + currentDirection.y);
+        float projectedRisk = 0f;
+        if (!mapManager.InBounds(projectedPos) || 
+            mapManager.GetTrail(projectedPos) == myPlayerID)
+        {
+            projectedRisk = 1f;
+        }
+        sensor.AddObservation(projectedRisk);
+
+        // 탈출 가능한 방향의 수
+        int escapePaths = 0;
+        foreach (var dir in directions)
+        {
+            Vector2Int escapePos = new Vector2Int(myX + dir.x, myY + dir.y);
+            if (mapManager.InBounds(escapePos) && 
+                mapManager.GetTrail(escapePos) != myPlayerID)
+            {
+                escapePaths++;
+            }
+        }
+        sensor.AddObservation(escapePaths / 4f); // 0~1로 정규화
+
+        // 주변 8방향 중 안전한 곳의 비율
+        int safeCells = 0;
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                if (dx == 0 && dy == 0) continue;
+                Vector2Int checkPos = new Vector2Int(myX + dx, myY + dy);
+                if (mapManager.InBounds(checkPos) && 
+                    mapManager.GetTrail(checkPos) != myPlayerID)
+                {
+                    safeCells++;
+                }
+            }
+        }
+        sensor.AddObservation(safeCells / 8f); // 0~1로 정규화
     }
 
     private void AddStrategicObservations(VectorSensor sensor, int myX, int myY, int myPlayerID)

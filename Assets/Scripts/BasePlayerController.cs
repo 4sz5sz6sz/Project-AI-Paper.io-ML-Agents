@@ -100,10 +100,8 @@ public abstract class BasePlayerController : MonoBehaviour
     // PlayerController.cs의 이동 처리 로직을 분리
     protected virtual void HandleMovement()
     {
-        HandleInput();
-
-        // 방향이 바뀔 때만 코너 저장
-        if (!isMoving && queuedDirection != Vector2Int.zero && queuedDirection != -direction)
+        HandleInput();        // 방향이 바뀔 때만 코너 저장 (180도 회전 제한 제거)
+        if (!isMoving && queuedDirection != Vector2Int.zero)
         {
             // 내 영역 밖에 있을 때만 코너 저장
             if (direction != Vector2Int.zero && queuedDirection != direction && !wasInsideOwnedArea)
