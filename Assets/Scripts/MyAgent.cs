@@ -36,6 +36,11 @@ public class MyAgent : Agent
     {
         Debug.Log($"[MyAgent] Player {controller?.playerID} 에피소드 시작");
 
+        // **상태 초기화**
+        previousScore = 0f;
+        stepsWithoutProgress = 0;
+        isDead = false;
+
         if (mapManager == null)
         {
             mapManager = MapManager.Instance;
@@ -53,6 +58,8 @@ public class MyAgent : Agent
             controller.playerID == 2 ? 45 : 5,  // AI는 보통 player 2
             controller.playerID == 2 ? 20 : 5
         );
+
+        previousPosition = spawnPos;
 
         // 완전 재스폰 실행 (영토, 위치, 상태 모두 초기화)
         if (controller != null)
@@ -95,7 +102,8 @@ public class MyAgent : Agent
         }
     }    // 확장된 고해상도 관찰: 700+ 차원 (Unity Inspector 설정 필요)
     public override void CollectObservations(VectorSensor sensor)
-    {        if (controller == null || mapManager == null)
+    {
+        if (controller == null || mapManager == null)
         {
             // 기본값으로 채워서 관찰 차원 맞추기 (총 1328차원)
             for (int i = 0; i < 1328; i++) sensor.AddObservation(0f);
@@ -168,7 +176,8 @@ public class MyAgent : Agent
                     }
                 }
             }
-        }        return dangerCount > 0 ? Mathf.Clamp01(danger / 10f) : 0f;
+        }
+        return dangerCount > 0 ? Mathf.Clamp01(danger / 10f) : 0f;
     }
 
     // **중요!** 근접 3x3 영역 - 생존에 가장 핵심적인 정보 (9차원)
@@ -180,9 +189,9 @@ public class MyAgent : Agent
             for (int x = -1; x <= 1; x++)
             {
                 Vector2Int checkPos = new Vector2Int(myX + x, myY + y);
-                
+
                 float criticalValue = 0f;
-                
+
                 if (!mapManager.InBounds(checkPos))
                 {
                     criticalValue = -2f; // 경계 밖 - 매우 위험
@@ -192,7 +201,7 @@ public class MyAgent : Agent
                     // 타일 소유권 확인
                     int tileOwner = mapManager.GetTile(checkPos);
                     int trailOwner = mapManager.GetTrail(checkPos);
-                    
+
                     // **생존 핵심 로직**: 내 궤적이 있으면 절대 위험
                     if (trailOwner == myPlayerID)
                     {
@@ -215,7 +224,7 @@ public class MyAgent : Agent
                         criticalValue = -0.5f; // 다른 플레이어 영역
                     }
                 }
-                
+
                 sensor.AddObservation(criticalValue);
             }
         }
@@ -226,13 +235,13 @@ public class MyAgent : Agent
     {
         // 4방향 이동 시 즉시 위험도
         Vector2Int[] directions = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
-        
+
         for (int i = 0; i < 4; i++)
         {
             Vector2Int nextPos = new Vector2Int(myX + directions[i].x, myY + directions[i].y);
-            
+
             float immediateRisk = 0f;
-            
+
             if (!mapManager.InBounds(nextPos))
             {
                 immediateRisk = 1f; // 경계로 이동 - 즉시 사망
@@ -267,15 +276,15 @@ public class MyAgent : Agent
                     immediateRisk = Mathf.Clamp01(nearbyTrails / 8f); // 주변 궤적 밀도
                 }
             }
-            
+
             sensor.AddObservation(immediateRisk);
         }
 
         // 추가 위험 지표들 (6차원)
-        
+
         // 현재 위치가 내 영역인지
         Vector2Int currentPos = new Vector2Int(myX, myY);
-        bool inMyTerritory = mapManager.InBounds(currentPos) && 
+        bool inMyTerritory = mapManager.InBounds(currentPos) &&
                            mapManager.GetTile(currentPos) == myPlayerID;
         sensor.AddObservation(inMyTerritory ? 0f : 1f); // 영역 밖이면 위험
 
@@ -310,7 +319,7 @@ public class MyAgent : Agent
         Vector2Int currentDirection = controller.direction;
         Vector2Int projectedPos = new Vector2Int(myX + currentDirection.x, myY + currentDirection.y);
         float projectedRisk = 0f;
-        if (!mapManager.InBounds(projectedPos) || 
+        if (!mapManager.InBounds(projectedPos) ||
             mapManager.GetTrail(projectedPos) == myPlayerID)
         {
             projectedRisk = 1f;
@@ -322,7 +331,7 @@ public class MyAgent : Agent
         foreach (var dir in directions)
         {
             Vector2Int escapePos = new Vector2Int(myX + dir.x, myY + dir.y);
-            if (mapManager.InBounds(escapePos) && 
+            if (mapManager.InBounds(escapePos) &&
                 mapManager.GetTrail(escapePos) != myPlayerID)
             {
                 escapePaths++;
@@ -338,7 +347,7 @@ public class MyAgent : Agent
             {
                 if (dx == 0 && dy == 0) continue;
                 Vector2Int checkPos = new Vector2Int(myX + dx, myY + dy);
-                if (mapManager.InBounds(checkPos) && 
+                if (mapManager.InBounds(checkPos) &&
                     mapManager.GetTrail(checkPos) != myPlayerID)
                 {
                     safeCells++;
@@ -439,7 +448,7 @@ public class MyAgent : Agent
     {
         // 해당 방향으로 이동했을 때의 안전성 평가
         Vector2Int nextPos = new Vector2Int(x + direction.x, y + direction.y);
-        
+
         if (!mapManager.InBounds(nextPos)) return -1f; // 경계 밖은 위험
 
         // 내 궤적과 충돌하는지 확인
@@ -461,7 +470,7 @@ public class MyAgent : Agent
                 }
             }
         }
-        
+
         return Mathf.Clamp(safety, -1f, 1f);
     }
 
@@ -515,6 +524,10 @@ public class MyAgent : Agent
     {
         EndEpisode();
     }
+    private float previousScore = 0f;
+    private Vector2Int previousPosition;
+    private int stepsWithoutProgress = 0;
+    private const int MAX_STEPS_WITHOUT_PROGRESS = 100;
 
     public override void OnActionReceived(ActionBuffers actions)
     {
@@ -522,18 +535,23 @@ public class MyAgent : Agent
 
         if (controller != null && action >= 0 && action < possibleActions.Length)
         {
-            controller.SetDirection(possibleActions[action]);
+            Vector2Int newDirection = possibleActions[action];
+            Vector2Int currentPos = new Vector2Int(
+                Mathf.RoundToInt(transform.localPosition.x),
+                Mathf.RoundToInt(transform.localPosition.y)
+            );
 
-            // 유효한 행동에 대한 작은 보상
-            AddReward(0.001f);
+            // **영역 확보 중심 보상 시스템**
+            CalculateSmartRewards(newDirection, currentPos);
+
+            controller.SetDirection(newDirection);
         }
         else
         {
-            AddReward(-0.05f); // 잘못된 행동에 더 큰 페널티
+            AddReward(-0.1f); // 잘못된 행동에 더 큰 페널티
             if (controller == null) Debug.LogError("MyAgent: AIPlayerController가 없어 행동을 수행할 수 없습니다.");
             else Debug.LogWarning($"MyAgent: Received invalid action index: {action}");
-        }        // 생존에 대한 작은 보상 (매 스텝마다)
-        AddReward(0.002f);
+        }
 
         // 이미 사망 상태라면 더 이상 진행하지 않음
         if (isDead)
@@ -546,12 +564,6 @@ public class MyAgent : Agent
         {
             float currentScore = gameManager.GetScore(controller.playerID);
 
-            // 영역 확장에 대한 보상
-            if (currentScore > 0)
-            {
-                AddReward(currentScore * 0.001f); // 점수에 비례한 보상
-            }
-
             // 점수 기반 사망 감지 (보조적 체크)
             if (currentScore < 0 && !isDead)
             {
@@ -562,35 +574,253 @@ public class MyAgent : Agent
 
             if (currentScore >= 500) // 승리
             {
-                SetReward(20.0f); // 더 큰 승리 보상
-                Debug.Log($"MyAgent({controller.playerID}): 승리하여 에피소드 종료. 즉시 재시작.");
+                SetReward(50.0f); // 승리 보상 증대
+                Debug.Log($"MyAgent({controller.playerID}): 승리하여 에피소드 종료.");
                 EndEpisode();
                 return;
             }
+
+            // 진전 없이 너무 오래 걸리면 페널티
+            if (currentScore == previousScore)
+            {
+                stepsWithoutProgress++;
+                if (stepsWithoutProgress > MAX_STEPS_WITHOUT_PROGRESS)
+                {
+                    AddReward(-0.5f); // 진전 없음 페널티
+                    stepsWithoutProgress = 0;
+                }
+            }
+            else
+            {
+                stepsWithoutProgress = 0;
+            }
+
+            previousScore = currentScore;
         }
     }
-
     public override void Heuristic(in ActionBuffers actionsOut)
     {
         var discreteActionsOut = actionsOut.DiscreteActions;
-        discreteActionsOut.Clear();
+
+        // **개선된 휴리스틱 - 더 반응성 좋게**
+        int selectedAction = -1;
 
         // IJKL 키로 에이전트 수동 제어 (Player1 WASD와 구분)
-        if (Input.GetKey(KeyCode.I)) // 위
+        // Input.GetKey 대신 Input.GetKeyDown도 함께 확인
+        if (Input.GetKey(KeyCode.I) || Input.GetKeyDown(KeyCode.I)) // 위
         {
-            discreteActionsOut[0] = 0;
+            selectedAction = 0;
+            Debug.Log("[Heuristic] I키 입력 - 위쪽 이동");
         }
-        else if (Input.GetKey(KeyCode.L)) // 오른쪽
+        else if (Input.GetKey(KeyCode.L) || Input.GetKeyDown(KeyCode.L)) // 오른쪽
         {
-            discreteActionsOut[0] = 1;
+            selectedAction = 1;
+            Debug.Log("[Heuristic] L키 입력 - 오른쪽 이동");
         }
-        else if (Input.GetKey(KeyCode.K)) // 아래
+        else if (Input.GetKey(KeyCode.K) || Input.GetKeyDown(KeyCode.K)) // 아래
         {
-            discreteActionsOut[0] = 2;
+            selectedAction = 2;
+            Debug.Log("[Heuristic] K키 입력 - 아래쪽 이동");
         }
-        else if (Input.GetKey(KeyCode.J)) // 왼쪽
+        else if (Input.GetKey(KeyCode.J) || Input.GetKeyDown(KeyCode.J)) // 왼쪽
         {
-            discreteActionsOut[0] = 3;
+            selectedAction = 3;
+            Debug.Log("[Heuristic] J키 입력 - 왼쪽 이동");
         }
+
+        // 액션 설정
+        if (selectedAction >= 0)
+        {
+            discreteActionsOut[0] = selectedAction;
+            Debug.Log($"[Heuristic] 최종 액션: {selectedAction} ({(selectedAction == 0 ? "위" : selectedAction == 1 ? "오른쪽" : selectedAction == 2 ? "아래" : "왼쪽")})");
+        }
+        else
+        {
+            // 키 입력이 없으면 현재 방향 유지 또는 랜덤
+            Vector2Int currentDir = controller?.direction ?? Vector2Int.zero;
+            if (currentDir == Vector2Int.up) discreteActionsOut[0] = 0;
+            else if (currentDir == Vector2Int.right) discreteActionsOut[0] = 1;
+            else if (currentDir == Vector2Int.down) discreteActionsOut[0] = 2;
+            else if (currentDir == Vector2Int.left) discreteActionsOut[0] = 3;
+            else discreteActionsOut[0] = 1; // 기본값: 오른쪽
+        }
+    }
+
+    // **영역 확보 중심 스마트 보상 시스템**
+    private void CalculateSmartRewards(Vector2Int newDirection, Vector2Int currentPos)
+    {
+        int myPlayerID = controller.playerID;
+        Vector2Int nextPos = currentPos + newDirection;
+
+        // 1. 기본 생존 보상 (매우 작게)
+        AddReward(0.001f);
+
+        if (!mapManager.InBounds(nextPos))
+        {
+            AddReward(-1.0f); // 경계 충돌 강력한 페널티
+            return;
+        }
+
+        // 2. 자기 궤적 충돌 방지 보상
+        int nextTrail = mapManager.GetTrail(nextPos);
+        if (nextTrail == myPlayerID)
+        {
+            AddReward(-2.0f); // 자기 궤적 충돌 강력한 페널티
+            return;
+        }
+
+        // 3. **영역 확보 전략 보상**
+        int nextTile = mapManager.GetTile(nextPos);
+        int currentTile = mapManager.GetTile(currentPos);
+
+        bool wasInMyTerritory = (currentTile == myPlayerID);
+        bool willBeInMyTerritory = (nextTile == myPlayerID);
+
+        // 영역 밖에서 이동 중일 때 - 루프 완성을 장려
+        if (!wasInMyTerritory && !willBeInMyTerritory)
+        {
+            // 내 영역으로 돌아가는 방향이면 큰 보상
+            if (IsMovingTowardsMyTerritory(nextPos, myPlayerID))
+            {
+                AddReward(0.5f); // 영역으로 돌아가는 행동 장려
+            }
+
+            // 새로운 영역을 포함할 수 있는 움직임 보상
+            float areaGainPotential = CalculateAreaGainPotential(currentPos, nextPos, myPlayerID);
+            AddReward(areaGainPotential * 0.3f);
+        }
+
+        // 영역 밖으로 나가는 것은 전략적으로만 허용
+        if (wasInMyTerritory && !willBeInMyTerritory)
+        {
+            // 영역 확장 가능성이 있을 때만 보상
+            if (HasExpansionOpportunity(nextPos, myPlayerID))
+            {
+                AddReward(0.2f); // 전략적 확장 보상
+            }
+            else
+            {
+                AddReward(-0.1f); // 의미없는 영역 이탈 페널티
+            }
+        }
+
+        // 4. **중립 지역 점령 보상**
+        if (nextTile == 0) // 중립 지역
+        {
+            AddReward(0.1f); // 새로운 땅 탐험 보상
+        }
+
+        // 5. **루프 완성 감지 및 보상**
+        if (!wasInMyTerritory && willBeInMyTerritory)
+        {
+            // 루프를 완성하여 영역으로 돌아옴 - 큰 보상!
+            float loopSize = EstimateLoopSize(currentPos, myPlayerID);
+            AddReward(loopSize * 2.0f); // 루프 크기에 비례한 보상
+        }
+
+        // 6. **효율성 보상** - 직선만 가는 것 방지
+        if (IsStraightLineMovement())
+        {
+            AddReward(-0.05f); // 직선 이동 페널티
+        }
+
+        // 7. **다양성 보상** - 같은 패턴 반복 방지
+        if (IsRepeatingPattern(newDirection))
+        {
+            AddReward(-0.1f); // 패턴 반복 페널티
+        }
+    }
+
+    // 내 영역 방향으로 이동하는지 확인
+    private bool IsMovingTowardsMyTerritory(Vector2Int pos, int playerID)
+    {
+        // 주변 5x5에서 가장 가까운 내 영역 찾기
+        float minDistance = float.MaxValue;
+        for (int x = -10; x <= 10; x++)
+        {
+            for (int y = -10; y <= 10; y++)
+            {
+                Vector2Int checkPos = pos + new Vector2Int(x, y);
+                if (mapManager.InBounds(checkPos) && mapManager.GetTile(checkPos) == playerID)
+                {
+                    float distance = Vector2.Distance(pos, checkPos);
+                    if (distance < minDistance)
+                    {
+                        minDistance = distance;
+                    }
+                }
+            }
+        }
+        return minDistance <= 15f; // 가까운 거리에 내 영역이 있음
+    }
+
+    // 영역 확장 가능성 계산
+    private float CalculateAreaGainPotential(Vector2Int from, Vector2Int to, int playerID)
+    {
+        // 현재 궤적으로 둘러쌀 수 있는 중립 영역 계산
+        int neutralTiles = 0;
+        int totalTiles = 0;
+
+        // 예상 루프 영역 확인 (간단한 사각형 근사)
+        int minX = Mathf.Min(from.x, to.x) - 3;
+        int maxX = Mathf.Max(from.x, to.x) + 3;
+        int minY = Mathf.Min(from.y, to.y) - 3;
+        int maxY = Mathf.Max(from.y, to.y) + 3;
+
+        for (int x = minX; x <= maxX; x++)
+        {
+            for (int y = minY; y <= maxY; y++)
+            {
+                Vector2Int checkPos = new Vector2Int(x, y);
+                if (mapManager.InBounds(checkPos))
+                {
+                    totalTiles++;
+                    if (mapManager.GetTile(checkPos) == 0)
+                        neutralTiles++;
+                }
+            }
+        }
+
+        return totalTiles > 0 ? (float)neutralTiles / totalTiles : 0f;
+    }
+
+    // 확장 기회가 있는지 확인
+    private bool HasExpansionOpportunity(Vector2Int pos, int playerID)
+    {
+        // 주변에 중립 지역이 충분히 있는지 확인
+        int neutralCount = 0;
+        for (int x = -3; x <= 3; x++)
+        {
+            for (int y = -3; y <= 3; y++)
+            {
+                Vector2Int checkPos = pos + new Vector2Int(x, y);
+                if (mapManager.InBounds(checkPos) && mapManager.GetTile(checkPos) == 0)
+                    neutralCount++;
+            }
+        }
+        return neutralCount >= 10; // 주변에 중립 지역이 10개 이상
+    }
+
+    // 루프 크기 예측
+    private float EstimateLoopSize(Vector2Int pos, int playerID)
+    {
+        // 간단한 루프 크기 예측 - 실제로는 더 복잡한 계산 필요
+        return Mathf.Clamp(Vector2.Distance(pos, previousPosition) / 10f, 0.1f, 5.0f);
+    }
+
+    // 직선 이동 패턴 감지
+    private bool IsStraightLineMovement()
+    {
+        // 이전 3번의 이동이 모두 같은 방향인지 확인
+        // 실제 구현에서는 이동 히스토리를 저장해야 함
+        return false; // 간단화
+    }
+
+    // 반복 패턴 감지
+    private bool IsRepeatingPattern(Vector2Int direction)
+    {
+        // 같은 행동이 계속 반복되는지 확인
+        // 실제 구현에서는 행동 히스토리를 저장해야 함
+        return false; // 간단화
     }
 }
