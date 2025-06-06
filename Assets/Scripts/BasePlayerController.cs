@@ -130,18 +130,18 @@ public abstract class BasePlayerController : MonoBehaviour
         if (targetPlayer != null)
         {
             Debug.Log($"📷 카메라를 플레이어 {playerId}로 전환");
-            
+
             // 카메라를 해당 플레이어에게 부착
             mainCamera.transform.parent = targetPlayer.transform;
             mainCamera.transform.localPosition = new Vector3(0, 0, -10);
-            
+
             followingPlayerId = playerId;
             cameraFollowMode = true;
         }
         else
         {
             Debug.Log($"❌ 플레이어 {playerId}를 찾을 수 없습니다 (사망했거나 존재하지 않음)");
-            
+
             // 플레이어가 없으면 현재 위치에 고정
             mainCamera.transform.parent = null;
             cameraFollowMode = false;
@@ -201,18 +201,18 @@ public abstract class BasePlayerController : MonoBehaviour
                 // 내 영역 밖으로 나갈 때 점 추가
                 if (wasInsideOwnedArea && !isInsideOwnedArea)
                 {
-                    Debug.Log("📌 내 영역을 벗어남 - 이전 점과 현재 점 추가");
+                    // Debug.Log("📌 내 영역을 벗어남 - 이전 점과 현재 점 추가");
                     Vector2Int previousPos = gridPosition - direction; // 이전 위치 (내 땅)
                     cornerTracker?.AddCorner(previousPos);            // 이전 점 추가
                     cornerTracker?.AddCorner(gridPosition);
-                    Debug.Log($"추가된 점들: 이전=({previousPos.x}, {previousPos.y}), 현재=({gridPosition.x}, {gridPosition.y})");
+                    // Debug.Log($"추가된 점들: 이전=({previousPos.x}, {previousPos.y}), 현재=({gridPosition.x}, {gridPosition.y})");
                     if (trail != null) trail.trailActive = true;
                 }
 
                 // 내 영역 안으로 들어올 때 코너 추가 및 폐곡선 검사
                 if (!wasInsideOwnedArea && isInsideOwnedArea)
                 {
-                    Debug.Log("📌 내 영역 안으로 들어옴 - 코너 추가 및 폐곡선 검사");
+                    // Debug.Log("📌 내 영역 안으로 들어옴 - 코너 추가 및 폐곡선 검사");
                     cornerTracker?.AddCorner(gridPosition);
                     loopDetector?.CheckLoop(cornerTracker);
                     // cornerTracker?.DisplayCornersFor1Second();
