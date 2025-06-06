@@ -144,16 +144,16 @@ public class MapManager : MonoBehaviour
         int before = (tileRenderer != null)
             ? tileRenderer.GetGreenCount()
             : 0;
-
         // 3) FloodFill
         // 시작점과 끝점 사이에 내 영역 내부의 점들을 찾아 추가
         var safeCornerPoints = CreateSafePolygon(cornerPoints, ownerValue);
 
-        //경게선 
-        PaintBoundary(safeCornerPoints, ownerValue);
-        // 내부 점 찾기
+        // 내부 점 찾기 및 채우기 (먼저 실행)
         Vector2Int start = FindInteriorPoint(safeCornerPoints);
         FloodFill(start, safeCornerPoints, ownerValue);
+
+        // 경계선 색칠 (나중에 실행)
+        PaintBoundary(safeCornerPoints, ownerValue);
 
 
 
