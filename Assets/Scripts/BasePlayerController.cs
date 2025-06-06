@@ -49,6 +49,45 @@ public abstract class BasePlayerController : MonoBehaviour
         mapManager = FindFirstObjectByType<MapManager>();
     }
 
+    /// <summary>
+    /// 플레이어를 완전히 새로 스폰시킵니다 (ML-Agent 재시작용)
+    /// </summary>
+    public virtual void FullRespawn(Vector2Int newPosition)
+    {
+        Debug.Log($"플레이어 {cornerTracker?.playerId} 완전 재스폰 시작: 위치 {newPosition}");
+
+        // 1. 위치 이동
+        gridPosition = newPosition;
+        transform.position = new Vector3(gridPosition.x, gridPosition.y, -1f);
+        targetPosition = transform.position;
+
+        // 2. 이동 상태 초기화
+        direction = Vector2Int.zero;
+        queuedDirection = Vector2Int.zero;
+        isMoving = false;
+        wasInsideOwnedArea = true; // 새로 스폰될 때는 자신의 영토에서 시작
+
+        // 3. 궤적 초기화
+        if (trail != null)
+        {
+            trail.ResetTrail();
+            trail.trailActive = false;
+        }
+        // 4. 코너 포인트 초기화
+        if (cornerTracker != null)
+        {
+            cornerTracker.Clear();
+        }
+
+        // 5. 맵에서 새 영토 생성
+        if (mapManager != null && cornerTracker != null)
+        {
+            mapManager.RespawnPlayerTerritory(cornerTracker.playerId, newPosition);
+        }
+
+        Debug.Log($"플레이어 {cornerTracker?.playerId} 완전 재스폰 완료");
+    }
+
     // PlayerController.cs의 Update() 함수에 대응
     protected virtual void Update()
     {
@@ -100,19 +139,31 @@ public abstract class BasePlayerController : MonoBehaviour
                     return; // 사망 처리 후 더 이상 진행하지 않음
                 }
                 int currentTile = mapManager.GetTile(gridPosition);
-                bool isInsideOwnedArea = currentTile == cornerTracker.playerId;
-
-                // 항상 궤적 충돌 체크 (내 영역 안에서도 상대방 궤적을 끊을 수 있음)
+                bool isInsideOwnedArea = currentTile == cornerTracker.playerId;                // 항상 궤적 충돌 체크 (내 영역 안에서도 상대방 궤적을 끊을 수 있음)
                 int existingTrail = mapManager.GetTrail(gridPosition);
                 if (existingTrail > 0)
                 {
-                    // 궤적을 밟으면 해당 궤적의 주인이 죽음
-                    if (GameController.Instance != null)
+                    if (existingTrail == cornerTracker.playerId)
                     {
-                        GameController.Instance.KillPlayer(existingTrail);
+                        // 자신의 꼬리를 밟으면 자신이 죽음
+                        Debug.Log($"플레이어 {cornerTracker.playerId}: 자신의 꼬리를 밟아 사망!");
+                        if (GameController.Instance != null)
+                        {
+                            GameController.Instance.KillPlayer(cornerTracker.playerId);
+                        }
+                        return; // 사망 처리 후 더 이상 진행하지 않음
                     }
-                    // 궤적을 끊었으므로 해당 위치의 궤적 제거
-                    mapManager.SetTrail(gridPosition, 0);
+                    else
+                    {
+                        // 다른 플레이어의 궤적을 밟으면 해당 플레이어가 죽음
+                        Debug.Log($"플레이어 {cornerTracker.playerId}: 플레이어 {existingTrail}의 궤적을 끊음!");
+                        if (GameController.Instance != null)
+                        {
+                            GameController.Instance.KillPlayer(existingTrail);
+                        }
+                        // 궤적을 끊었으므로 해당 위치의 궤적 제거
+                        mapManager.SetTrail(gridPosition, 0);
+                    }
                 }
 
                 // 내 영역 밖에 있을 때만 자신의 궤적 설정
@@ -137,7 +188,7 @@ public abstract class BasePlayerController : MonoBehaviour
                     // 내 영역으로 들어올 때 내 궤적 제거
                     mapManager.ClearPlayerTrails(cornerTracker.playerId);
                 }
-                
+
                 // 🔧 이전 위치와 현재 위치가 모두 내 영역일 때 꼭짓점 집합 정리
                 if (wasInsideOwnedArea && isInsideOwnedArea)
                 {
@@ -148,7 +199,7 @@ public abstract class BasePlayerController : MonoBehaviour
                         cornerTracker.Clear();
                     }
                 }
-                
+
                 wasInsideOwnedArea = isInsideOwnedArea;
             }
         }

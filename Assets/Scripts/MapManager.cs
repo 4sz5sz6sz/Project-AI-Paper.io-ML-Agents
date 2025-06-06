@@ -466,4 +466,60 @@ public class MapManager : MonoBehaviour
         }
         return inside;
     }
+
+    /// <summary>
+    /// ML-Agent 재스폰을 위한 영토 재생성 메서드
+    /// </summary>
+    public void RespawnPlayerTerritory(int playerId, Vector2Int spawnPosition)
+    {
+        Debug.Log($"플레이어 {playerId} 재스폰: 위치 {spawnPosition}에 새 영토 생성");
+
+        // 먼저 기존 영토와 궤적을 모두 제거
+        ClearPlayerTerritory(playerId);
+        ClearPlayerTrails(playerId);
+
+        // 강제로 맵에서 해당 플레이어의 모든 흔적 제거 (더블 체크)
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                if (tileStates[x, y] == playerId)
+                {
+                    tileStates[x, y] = 0;
+                }
+                if (trailStates[x, y] == playerId)
+                {
+                    trailStates[x, y] = 0;
+                }
+            }
+        }
+
+        // 새로운 초기 영토 생성
+        InitializePlayerTerritory(spawnPosition, playerId);
+
+        // 점수 초기화 (초기 영토 크기로 설정)
+        int initialScore = INITIAL_TERRITORY_SIZE * INITIAL_TERRITORY_SIZE;
+
+        // 점수 설정을 두 번 시도 (안정성 확보)
+        if (GameController.Instance != null)
+        {
+            GameController.Instance.SetScore(playerId, initialScore);
+
+            // 검증: 실제로 점수가 설정되었는지 확인
+            int verifyScore = GameController.Instance.GetScore(playerId);
+            if (verifyScore != initialScore)
+            {
+                Debug.LogWarning($"점수 설정 실패! 재시도... 목표: {initialScore}, 현재: {verifyScore}");
+                GameController.Instance.SetScore(playerId, initialScore);
+            }
+        }
+
+        // 화면 갱신
+        if (tileRenderer != null)
+        {
+            tileRenderer.RedrawAllTiles();
+        }
+
+        Debug.Log($"플레이어 {playerId} 재스폰 완료: 점수 {initialScore}로 설정 (검증됨)");
+    }
 }

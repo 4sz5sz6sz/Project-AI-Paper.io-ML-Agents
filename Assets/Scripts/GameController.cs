@@ -170,22 +170,36 @@ public class GameController : MonoBehaviour
                 mainCamera.transform.position = new Vector3(lastPosition.x, lastPosition.y, -10f);
                 cameraFollowMode = false; // 고정 모드로 전환
                 followingPlayerId = -1; // 추적 대상 초기화
-            }
-
-            // 플레이어 오브젝트 파괴
-            Destroy(player);
-
-            // 사망한 플레이어의 궤적 제거
-            if (MapManager.Instance != null)
+            }            // MyAgent인지 확인
+            MyAgent agent = player.GetComponent<MyAgent>();
+            if (agent != null)
             {
-                MapManager.Instance.ClearPlayerTrails(playerId);
-                // 영토도 제거
-                MapManager.Instance.ClearPlayerTerritory(playerId);
+                // ML-Agents인 경우: 궤적만 제거하고 영토는 유지 (재시작에서 다시 생성됨)
+                if (MapManager.Instance != null)
+                {
+                    MapManager.Instance.ClearPlayerTrails(playerId);
+                }
+
+                // 즉시 사망 알림 및 재시작 (점수는 재시작에서 초기화됨)
+                agent.NotifyDeath();
+                Debug.Log($"ML-Agent Player {playerId} 사망 - NotifyDeath() 호출로 즉시 재시작");
+            }
+            else
+            {
+                // 일반 플레이어인 경우: 기존처럼 처리
+                Destroy(player);
+
+                // 사망한 플레이어의 궤적과 영토 제거
+                if (MapManager.Instance != null)
+                {
+                    MapManager.Instance.ClearPlayerTrails(playerId);
+                    MapManager.Instance.ClearPlayerTerritory(playerId);
+                }
+
+                // 점수를 -1로 설정 (사망 표시)
+                SetScore(playerId, -1);
             }
         }
-
-        // 점수를 -1로 설정 (사망 표시)
-        SetScore(playerId, -1);
     }
 
     public GameObject FindPlayerById(int id)

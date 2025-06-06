@@ -25,27 +25,20 @@ public class MyAgent : Agent
         if (mapManager == null)
             Debug.LogError("MyAgent: Start()에서도 MapManager.Instance를 찾지 못했습니다!");
     }
-
     public override void Initialize()
     {
         controller = GetComponent<AIPlayerController>();
         gameManager = GameController.Instance;
 
         Debug.Log("[MyAgent] Initialize 완료 - 계층적 관찰 시스템 (85차원 벡터)");
-    }    public override void OnEpisodeBegin()
+    }
+    public override void OnEpisodeBegin()
     {
-        Debug.Log($"[MyAgent] 새 에피소드 시작 - Player {controller?.playerID}");
-        
-        if (mapManager != null)
+        Debug.Log($"[MyAgent] Player {controller?.playerID} 에피소드 시작");
+
+        if (mapManager == null)
         {
-            mapManager.InitializePlayerScores();
-            Debug.Log("MyAgent: MapManager.InitializePlayerScores() 호출.");
-        }
-        else
-        {
-            Debug.LogError("MyAgent: MapManager 참조가 없어 맵 초기화에 실패했습니다.");
-            EndEpisode();
-            return;
+            mapManager = MapManager.Instance;
         }
 
         if (controller == null || controller.playerID <= 0)
@@ -55,8 +48,51 @@ public class MyAgent : Agent
             return;
         }
 
+        // 에이전트 재스폰 위치 설정
+        Vector2Int spawnPos = new Vector2Int(
+            controller.playerID == 2 ? 45 : 5,  // AI는 보통 player 2
+            controller.playerID == 2 ? 20 : 5
+        );
+
+        // 완전 재스폰 실행 (영토, 위치, 상태 모두 초기화)
+        if (controller != null)
+        {
+            controller.FullRespawn(spawnPos);
+        }
+
+        // 사망 상태 리셋
+        isDead = false;
+
         // 보상 초기화
         SetReward(0f);
+
+        // 추가적인 상태 안정화를 위한 지연 후 확인
+        Invoke(nameof(VerifyRespawnState), 0.2f);
+
+        Debug.Log($"[MyAgent] Player {controller.playerID} 완전 재스폰 완료 - 위치: {spawnPos}");
+    }
+
+    private void VerifyRespawnState()
+    {
+        // 재스폰 후 상태 검증
+        if (controller != null && gameManager != null)
+        {
+            int currentScore = gameManager.GetScore(controller.playerID);
+            Debug.Log($"[MyAgent] 재스폰 후 상태 검증 - Player {controller.playerID} 점수: {currentScore}");
+
+            if (currentScore <= 0)
+            {
+                Debug.LogWarning($"[MyAgent] Player {controller.playerID} 재스폰 후에도 점수가 {currentScore}입니다. 강제 초기화 시도...");
+
+                // 강제로 점수 재설정
+                if (mapManager != null)
+                {
+                    int initialScore = 10 * 10; // INITIAL_TERRITORY_SIZE * INITIAL_TERRITORY_SIZE
+                    gameManager.SetScore(controller.playerID, initialScore);
+                    Debug.Log($"[MyAgent] Player {controller.playerID} 점수를 {initialScore}로 강제 설정");
+                }
+            }
+        }
     }
 
     // 계층적 관찰: 다중 스케일로 환경을 관찰
@@ -233,14 +269,35 @@ public class MyAgent : Agent
             }
         }
         return occupied / 1250f;
-    }    public override void OnActionReceived(ActionBuffers actions)
+    }
+    private bool isDead = false; // 사망 상태 추적
+
+    public void NotifyDeath()
+    {
+        if (!isDead) // 중복 호출 방지
+        {
+            isDead = true;
+            SetReward(-10.0f); // 사망 페널티
+            Debug.Log($"MyAgent({controller?.playerID}): 사망 감지됨. 즉시 재시작.");
+
+            // 약간의 지연을 두고 에피소드 종료 (상태 안정화)
+            Invoke(nameof(DelayedEndEpisode), 0.1f);
+        }
+    }
+
+    private void DelayedEndEpisode()
+    {
+        EndEpisode();
+    }
+
+    public override void OnActionReceived(ActionBuffers actions)
     {
         int action = actions.DiscreteActions[0];
 
         if (controller != null && action >= 0 && action < possibleActions.Length)
         {
             controller.SetDirection(possibleActions[action]);
-            
+
             // 유효한 행동에 대한 작은 보상
             AddReward(0.001f);
         }
@@ -249,16 +306,19 @@ public class MyAgent : Agent
             AddReward(-0.05f); // 잘못된 행동에 더 큰 페널티
             if (controller == null) Debug.LogError("MyAgent: AIPlayerController가 없어 행동을 수행할 수 없습니다.");
             else Debug.LogWarning($"MyAgent: Received invalid action index: {action}");
-        }
-
-        // 생존에 대한 작은 보상 (매 스텝마다)
+        }        // 생존에 대한 작은 보상 (매 스텝마다)
         AddReward(0.002f);
+
+        // 이미 사망 상태라면 더 이상 진행하지 않음
+        if (isDead)
+        {
+            return;
+        }
 
         // 게임 종료 체크
         if (gameManager != null && controller != null)
         {
             float currentScore = gameManager.GetScore(controller.playerID);
-            float previousScore = GetCumulativeReward();
 
             // 영역 확장에 대한 보상
             if (currentScore > 0)
@@ -266,11 +326,11 @@ public class MyAgent : Agent
                 AddReward(currentScore * 0.001f); // 점수에 비례한 보상
             }
 
-            if (currentScore < 0) // 죽음
+            // 점수 기반 사망 감지 (보조적 체크)
+            if (currentScore < 0 && !isDead)
             {
-                SetReward(-10.0f); // 더 큰 사망 페널티
-                Debug.Log($"MyAgent({controller.playerID}): 사망하여 에피소드 종료. 즉시 재시작.");
-                EndEpisode();
+                Debug.Log($"MyAgent({controller.playerID}): 점수 기반 사망 감지 (score: {currentScore})");
+                NotifyDeath();
                 return;
             }
 
@@ -282,7 +342,9 @@ public class MyAgent : Agent
                 return;
             }
         }
-    }    public override void Heuristic(in ActionBuffers actionsOut)
+    }
+
+    public override void Heuristic(in ActionBuffers actionsOut)
     {
         var discreteActionsOut = actionsOut.DiscreteActions;
         discreteActionsOut.Clear();
