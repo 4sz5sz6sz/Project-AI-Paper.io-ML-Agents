@@ -26,19 +26,19 @@ public class AIPlayerController_Rectangle : BasePlayerController
             queuedDirection = input;
         }
 
-        Debug.Log($"현재 상태: {currentState}, 이동 스텝: {moveSteps}, 방향: {queuedDirection}");
+        // Debug.Log($"현재 상태: {currentState}, 이동 스텝: {moveSteps}, 방향: {queuedDirection}");
     }
 
     private bool IsValidTurn(Vector2Int newDirection)
     {
         // 현재 방향과 같으면 허용
         if (newDirection == direction) return true;
-        
+
         // 반대 방향이면 불허
         if (newDirection == -direction) return false;
-        
+
         // 90도 회전만 허용
-        return Vector2.Dot(new Vector2(direction.x, direction.y), 
+        return Vector2.Dot(new Vector2(direction.x, direction.y),
                           new Vector2(newDirection.x, newDirection.y)) == 0;
     }
 
@@ -178,7 +178,7 @@ public class AIPlayerController_Rectangle : BasePlayerController
     {
         // 현재 방향에서 90도로만 회전하며 안전한 귀환 경로 찾기
         Vector2Int[] possibleTurns = GetValidTurns(direction);
-        
+
         foreach (var dir in possibleTurns)
         {
             Vector2Int newPos = gridPosition + dir;

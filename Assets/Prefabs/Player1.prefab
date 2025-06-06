@@ -106,7 +106,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   moveSpeed: 15
-  isMainPlayer: 0
+  isMainPlayer: 1
   direction: {x: 0, y: 0}
   isMoving: 0
   wasInsideOwnedArea: 0
