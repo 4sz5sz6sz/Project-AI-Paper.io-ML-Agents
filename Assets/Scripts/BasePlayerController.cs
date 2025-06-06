@@ -99,12 +99,21 @@ public abstract class BasePlayerController : MonoBehaviour
         // 이동 처리
         if (isMoving)
         {
-            transform.position = Vector3.MoveTowards(transform.position, targetPosition, moveSpeed * Time.deltaTime);
-
-            if (Vector3.Distance(transform.position, targetPosition) < 0.01f)
+            transform.position = Vector3.MoveTowards(transform.position, targetPosition, moveSpeed * Time.deltaTime); if (Vector3.Distance(transform.position, targetPosition) < 0.01f)
             {
                 transform.position = targetPosition;
                 isMoving = false;
+
+                // 맵 경계 체크 - 경계를 벗어나면 사망
+                if (!mapManager.InBounds(gridPosition))
+                {
+                    Debug.Log($"💀 플레이어 {cornerTracker.playerId}가 맵 경계를 벗어남! 위치: ({gridPosition.x}, {gridPosition.y})");
+                    if (GameController.Instance != null)
+                    {
+                        GameController.Instance.KillPlayer(cornerTracker.playerId);
+                    }
+                    return; // 사망 처리 후 더 이상 진행하지 않음
+                }
 
                 int currentTile = mapManager.GetTile(gridPosition);
                 bool isInsideOwnedArea = currentTile == cornerTracker.playerId;
@@ -142,7 +151,7 @@ public abstract class BasePlayerController : MonoBehaviour
     {
         float distance = Vector2.Distance(transform.position, other.transform.position);
         if (distance > 1f) return; // 너무 멀면 무시
-        
+
         var trail = other.GetComponent<LineTrailWithCollision>();
         if (trail == null || trail.cornerTracker == null) return;
 
