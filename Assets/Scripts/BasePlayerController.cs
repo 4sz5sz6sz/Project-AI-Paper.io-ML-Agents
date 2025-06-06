@@ -90,9 +90,7 @@ public abstract class BasePlayerController : MonoBehaviour
             if (Vector3.Distance(transform.position, targetPosition) < 0.01f)
             {
                 transform.position = targetPosition;
-                isMoving = false;
-
-                // 맵 경계 체크 - 경계를 벗어나면 사망
+                isMoving = false;                // 맵 경계 체크 - 경계를 벗어나면 사망
                 if (!mapManager.InBounds(gridPosition))
                 {
                     if (GameController.Instance != null)
@@ -101,11 +99,27 @@ public abstract class BasePlayerController : MonoBehaviour
                     }
                     return; // 사망 처리 후 더 이상 진행하지 않음
                 }
-
                 int currentTile = mapManager.GetTile(gridPosition);
                 bool isInsideOwnedArea = currentTile == cornerTracker.playerId;
 
-                // 내 영역 밖으로 나갈 때 점 추가
+                // 항상 궤적 충돌 체크 (내 영역 안에서도 상대방 궤적을 끊을 수 있음)
+                int existingTrail = mapManager.GetTrail(gridPosition);
+                if (existingTrail > 0)
+                {
+                    // 궤적을 밟으면 해당 궤적의 주인이 죽음
+                    if (GameController.Instance != null)
+                    {
+                        GameController.Instance.KillPlayer(existingTrail);
+                    }
+                    // 궤적을 끊었으므로 해당 위치의 궤적 제거
+                    mapManager.SetTrail(gridPosition, 0);
+                }
+
+                // 내 영역 밖에 있을 때만 자신의 궤적 설정
+                if (!isInsideOwnedArea)
+                {
+                    mapManager.SetTrail(gridPosition, cornerTracker.playerId);
+                }// 내 영역 밖으로 나갈 때 점 추가
                 if (wasInsideOwnedArea && !isInsideOwnedArea)
                 {
                     Vector2Int previousPos = gridPosition - direction; // 이전 위치 (내 땅)
@@ -121,27 +135,12 @@ public abstract class BasePlayerController : MonoBehaviour
                     loopDetector?.CheckLoop(cornerTracker);
                     trail?.ResetTrail();
                     if (trail != null) trail.trailActive = false;
-                }
 
+                    // 내 영역으로 들어올 때 내 궤적 제거
+                    mapManager.ClearPlayerTrails(cornerTracker.playerId);
+                }
                 wasInsideOwnedArea = isInsideOwnedArea;
             }
-        }
-    }
-
-    // 선을 밟았을 때 선의 주인을 죽이는 공통 로직
-    // 각 플레이어마다 on
-    protected void CheckTrailCollision(Collider2D other)
-    {
-        float distance = Vector2.Distance(transform.position, other.transform.position);
-        if (distance > 1f) return; // 너무 멀면 무시
-
-        var trail = other.GetComponent<LineTrailWithCollision>();
-        if (trail == null || trail.cornerTracker == null) return;
-
-        int myId = cornerTracker.playerId; // ✅ safer
-        int trailOwner = trail.cornerTracker.playerId; if (GameController.Instance != null)
-        {
-            GameController.Instance.KillPlayer(trailOwner); // 선의 주인을 죽임
         }
     }
 }

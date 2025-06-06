@@ -2,8 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 
 public class MapManager : MonoBehaviour
-{
-    // ─────────────────────────────────────────────────
+{    // ─────────────────────────────────────────────────
     // 싱글톤 인스턴스
     public static MapManager Instance { get; private set; }
     // ─────────────────────────────────────────────────
@@ -11,6 +10,7 @@ public class MapManager : MonoBehaviour
     public int width = 100;
     public int height = 100;
     public int[,] tileStates;
+    public int[,] trailStates; // 궤적 정보 저장 (0: 궤적 없음, 1~N: 플레이어 ID)
 
     [Tooltip("TileRenderer 참조 (Inspector에서 할당)")]
     public TileRenderer tileRenderer;
@@ -25,10 +25,9 @@ public class MapManager : MonoBehaviour
             Destroy(gameObject);
             return;
         }
-        Instance = this;
-
-        // 맵 상태 초기화
+        Instance = this;        // 맵 상태 초기화
         tileStates = new int[width, height];
+        trailStates = new int[width, height]; // 궤적 상태도 초기화
 
         // Start()로 이동하여 플레이어들이 모두 생성된 후 영역 초기화
     }
@@ -120,6 +119,47 @@ public class MapManager : MonoBehaviour
 
     public int GetTile(Vector2Int pos)
         => InBounds(pos) ? tileStates[pos.x, pos.y] : -1;
+
+    // ═══════════════════════════════════════════════════════════
+    // 궤적(Trail) 관련 메서드들
+    // ═══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// 특정 위치에 궤적을 설정합니다.
+    /// </summary>
+    /// <param name="pos">위치</param>
+    /// <param name="playerId">플레이어 ID (0이면 궤적 제거)</param>
+    public void SetTrail(Vector2Int pos, int playerId)
+    {
+        if (!InBounds(pos)) return;
+        trailStates[pos.x, pos.y] = playerId;
+    }
+
+    /// <summary>
+    /// 특정 위치의 궤적 정보를 가져옵니다.
+    /// </summary>
+    /// <param name="pos">위치</param>
+    /// <returns>플레이어 ID (0이면 궤적 없음, -1이면 맵 범위 밖)</returns>
+    public int GetTrail(Vector2Int pos)
+        => InBounds(pos) ? trailStates[pos.x, pos.y] : -1;    /// <summary>
+                                                              /// 특정 플레이어의 모든 궤적을 제거합니다.
+                                                              /// </summary>
+                                                              /// <param name="playerId">제거할 플레이어 ID</param>
+    public void ClearPlayerTrails(int playerId)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                if (trailStates[x, y] == playerId)
+                {
+                    trailStates[x, y] = 0;
+                }
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
 
     /// <summary>
     /// cornerPoints로 정의된 폴리곤 내부를 ownerValue로 채우고,
