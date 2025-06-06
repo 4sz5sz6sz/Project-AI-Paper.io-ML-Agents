@@ -213,20 +213,18 @@ public class MapManager : MonoBehaviour
         {
             before = tileRenderer.GetPlayerTileCount(ownerValue);
         }        // 2) 안전한 폐곡선 폴리곤 생성
-        List<Vector2Int> safePolygon = CreateSafePolygon(cornerPoints, ownerValue);        // 3) 경계선 그리기
-        PaintBoundary(safePolygon, ownerValue);
+        List<Vector2Int> safePolygon = CreateSafePolygon(cornerPoints, ownerValue);        // 3) 내부 채우기 먼저 실행
+        Vector2Int interiorPoint = FindInteriorPoint(safePolygon);
+        FloodFill(interiorPoint, safePolygon, ownerValue);
 
-        // 경계선 그리기 후 즉시 렌더링
+        // 내부 채우기 후 즉시 렌더링
         if (tileRenderer != null)
         {
             tileRenderer.RedrawAllTiles();
         }
 
-        // 4) 내부 채우기
-        Vector2Int interiorPoint = FindInteriorPoint(safePolygon);
-        FloodFill(interiorPoint, safePolygon, ownerValue);
-
-        // FloodFill 완료 후 즉시 렌더링
+        // 4) 경계선 그리기 (내부 채우기 완료 후)
+        PaintBoundary(safePolygon, ownerValue);        // 경계선 그리기 후 최종 렌더링
         if (tileRenderer != null)
         {
             tileRenderer.RedrawAllTiles();

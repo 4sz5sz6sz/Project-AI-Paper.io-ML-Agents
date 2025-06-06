@@ -126,9 +126,7 @@ public abstract class BasePlayerController : MonoBehaviour
                     cornerTracker?.AddCorner(previousPos);            // 이전 점 추가
                     cornerTracker?.AddCorner(gridPosition);
                     if (trail != null) trail.trailActive = true;
-                }
-
-                // 내 영역 안으로 들어올 때 코너 추가 및 폐곡선 검사
+                }                // 내 영역 안으로 들어올 때 코너 추가 및 폐곡선 검사
                 if (!wasInsideOwnedArea && isInsideOwnedArea)
                 {
                     cornerTracker?.AddCorner(gridPosition);
@@ -139,6 +137,18 @@ public abstract class BasePlayerController : MonoBehaviour
                     // 내 영역으로 들어올 때 내 궤적 제거
                     mapManager.ClearPlayerTrails(cornerTracker.playerId);
                 }
+                
+                // 🔧 이전 위치와 현재 위치가 모두 내 영역일 때 꼭짓점 집합 정리
+                if (wasInsideOwnedArea && isInsideOwnedArea)
+                {
+                    // 꼭짓점이 1개 이상 남아있다면 비우기 (초기 위치 문제 해결)
+                    if (cornerTracker?.cornerPoints.Count > 0)
+                    {
+                        Debug.Log($"[BasePlayerController] 플레이어 {cornerTracker.playerId}: 영역 내부 이동 중 꼭짓점 집합 정리 (기존 {cornerTracker.cornerPoints.Count}개)");
+                        cornerTracker.Clear();
+                    }
+                }
+                
                 wasInsideOwnedArea = isInsideOwnedArea;
             }
         }
