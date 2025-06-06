@@ -93,9 +93,7 @@ public class MyAgent : Agent
                 }
             }
         }
-    }
-
-    // 계층적 관찰: 다중 스케일로 환경을 관찰
+    }    // 확장된 계층적 관찰: 85차원 (Unity Inspector 설정과 일치)
     public override void CollectObservations(VectorSensor sensor)
     {
         if (controller == null || mapManager == null)
@@ -140,48 +138,48 @@ public class MyAgent : Agent
             }
         }
 
-        // 3. 중간 범위 15x15 압축 관찰 (25차원) - 전술적 정보
-        // 3x3 구역으로 나누어 각 구역의 지배적 소유권 계산
-        for (int blockY = 0; blockY < 5; blockY++)
-        {
-            for (int blockX = 0; blockX < 5; blockX++)
-            {
-                int startX = agentGridX - 7 + blockX * 3;
-                int startY = agentGridY - 7 + blockY * 3;
+        // 3. 추가 정보 (1차원) - 위험도
+        float dangerLevel = CalculateLocalDanger(agentGridX, agentGridY, myPlayerID);
+        sensor.AddObservation(dangerLevel);
 
-                float myTiles = 0f, enemyTiles = 0f, neutralTiles = 0f;
-
-                for (int y = 0; y < 3; y++)
-                {
-                    for (int x = 0; x < 3; x++)
-                    {
-                        Vector2Int checkPos = new Vector2Int(startX + x, startY + y);
-                        if (mapManager.InBounds(checkPos))
-                        {
-                            int owner = mapManager.GetTile(checkPos);
-                            if (owner == myPlayerID) myTiles++;
-                            else if (owner == 0) neutralTiles++;
-                            else enemyTiles++;
-                        }
-                    }
-                }
-
-                // 이 블록의 지배도 (-1: 적 지배, 0: 중립, 1: 내 지배)
-                float dominance = (myTiles - enemyTiles) / 9f;
-                sensor.AddObservation(Mathf.Clamp(dominance, -1f, 1f));
-            }
-        }
-
-        // 4. 전역 전략 정보 (15차원)
+        // 4. 전략적 관찰 (39차원) - 방향별 기회 + 경계 거리 + 영역 정보
         AddStrategicObservations(sensor, agentGridX, agentGridY, myPlayerID);
 
-        // 5. 다른 플레이어 정보 (15차원) - 최대 3명의 상대방
+        // 5. 상대방 정보 (15차원) - 최대 3명 상대방
         AddOpponentObservations(sensor, agentGridX, agentGridY, myPlayerID);
+
+        Debug.Log($"[MyAgent] 관찰 완료 - 총 85차원 (5기본 + 25로컬 + 1위험 + 39전략 + 15상대방)");
+    }
+
+    private float CalculateLocalDanger(int myX, int myY, int myPlayerID)
+    {
+        // 주변 5x5 영역에서 내 궤적의 위험도 계산
+        float danger = 0f;
+        int dangerCount = 0;
+
+        for (int y = -2; y <= 2; y++)
+        {
+            for (int x = -2; x <= 2; x++)
+            {
+                Vector2Int checkPos = new Vector2Int(myX + x, myY + y);
+                if (mapManager.InBounds(checkPos))
+                {
+                    int trail = mapManager.GetTrail(checkPos);
+                    if (trail == myPlayerID)
+                    {
+                        // 내 궤적이 가까이 있으면 위험도 증가
+                        float distance = Mathf.Sqrt(x * x + y * y);
+                        danger += 1f / (distance + 0.1f); // 거리 역수
+                        dangerCount++;
+                    }
+                }
+            }
+        }        return dangerCount > 0 ? Mathf.Clamp01(danger / 10f) : 0f;
     }
 
     private void AddStrategicObservations(VectorSensor sensor, int myX, int myY, int myPlayerID)
     {
-        // 방향별 기회 분석 (상/하/좌/우/대각선 4방향)
+        // 방향별 기회 분석 (상/하/좌/우/대각선 8방향) - 8차원
         Vector2Int[] directions = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right,
                                    new Vector2Int(1,1), new Vector2Int(-1,1), new Vector2Int(1,-1), new Vector2Int(-1,-1) };
 
@@ -201,18 +199,44 @@ public class MyAgent : Agent
         float connectivity = CalculateTerritoryConnectivity(myPlayerID);
         sensor.AddObservation(connectivity);
 
-        // 내 꼬리 길이 (위험도) (1차원) - cornerTracker를 직접 접근하지 않고 간접적으로 계산
+        // 내 꼬리 길이 (위험도) (1차원)
         float trailRisk = CalculateTrailRisk(myX, myY, myPlayerID);
         sensor.AddObservation(trailRisk);
 
         // 전체 점령률 (1차원)
         float totalOccupancy = CalculateMapOccupancy();
         sensor.AddObservation(totalOccupancy);
+
+        // 추가 전략 정보들 (24차원)
+        // 현재 위치에서 각 방향으로의 안전성 평가 (8차원)
+        for (int i = 0; i < 8; i++)
+        {
+            float safety = CalculateDirectionalSafety(myX, myY, directions[i], myPlayerID);
+            sensor.AddObservation(safety);
+        }
+
+        // 영역 크기 변화율 (4차원: 최근 4스텝)
+        for (int i = 0; i < 4; i++)
+        {
+            sensor.AddObservation(0.5f); // 임시값 - 실제로는 이전 점수들과 비교
+        }
+
+        // 맵 중심으로부터의 거리 및 각도 (2차원)
+        float distanceFromCenter = Vector2.Distance(new Vector2(myX, myY), new Vector2(25, 12.5f)) / 30f;
+        float angleFromCenter = Mathf.Atan2(myY - 12.5f, myX - 25f) / Mathf.PI; // -1 ~ 1
+        sensor.AddObservation(distanceFromCenter);
+        sensor.AddObservation(angleFromCenter);
+
+        // 내 영역의 형태 분석 (10차원)
+        for (int i = 0; i < 10; i++)
+        {
+            sensor.AddObservation(0.5f); // 임시값 - 복잡한 형태 분석
+        }
     }
 
     private void AddOpponentObservations(VectorSensor sensor, int myX, int myY, int myPlayerID)
     {
-        // 최대 3명의 상대방 정보 (각 5차원씩)
+        // 최대 3명의 상대방 정보 (각 5차원씩) - 총 15차원
         for (int opponentSlot = 0; opponentSlot < 3; opponentSlot++)
         {
             // 실제 상대방이 있는지 확인하고 정보 수집
@@ -240,9 +264,40 @@ public class MyAgent : Agent
         return Mathf.Clamp(opportunity / 5f, -1f, 1f);
     }
 
+    private float CalculateDirectionalSafety(int x, int y, Vector2Int direction, int playerID)
+    {
+        // 해당 방향으로 이동했을 때의 안전성 평가
+        Vector2Int nextPos = new Vector2Int(x + direction.x, y + direction.y);
+        
+        if (!mapManager.InBounds(nextPos)) return -1f; // 경계 밖은 위험
+
+        // 내 궤적과 충돌하는지 확인
+        int trail = mapManager.GetTrail(nextPos);
+        if (trail == playerID) return -1f; // 내 궤적과 충돌
+
+        // 주변 안전성 계산
+        float safety = 0f;
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                Vector2Int checkPos = new Vector2Int(nextPos.x + dx, nextPos.y + dy);
+                if (mapManager.InBounds(checkPos))
+                {
+                    int checkTrail = mapManager.GetTrail(checkPos);
+                    if (checkTrail == playerID) safety -= 0.2f; // 내 궤적 근처는 위험
+                    else if (checkTrail == 0) safety += 0.1f; // 빈 공간은 안전
+                }
+            }
+        }
+        
+        return Mathf.Clamp(safety, -1f, 1f);
+    }
+
     private float CalculateTerritoryConnectivity(int playerID)
     {
         // 간단한 연결성 계산 - 실제로는 더 복잡한 알고리즘 필요
+        // 내 영역의 평균 연결성을 계산
         return 0.5f; // 임시값
     }
 
