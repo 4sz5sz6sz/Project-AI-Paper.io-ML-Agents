@@ -29,7 +29,7 @@ public class MapManager : MonoBehaviour
 
         // 맵 상태 초기화
         tileStates = new int[width, height];
-        
+
         // Start()로 이동하여 플레이어들이 모두 생성된 후 영역 초기화
     }
 
@@ -37,7 +37,7 @@ public class MapManager : MonoBehaviour
     {
         // 모든 플레이어 찾기
         BasePlayerController[] players = FindObjectsByType<BasePlayerController>(FindObjectsSortMode.None);
-        
+
         foreach (var player in players)
         {
             Vector2Int playerPos = Vector2Int.RoundToInt(player.transform.position);
@@ -223,14 +223,14 @@ public class MapManager : MonoBehaviour
     private List<Vector2Int> CreateSafePolygon(List<Vector2Int> originalPoints, int ownerValue)
     {
         var result = new List<Vector2Int>();
-        
+
         // 1. 외부 경로 추가 (출발 -> 도착)
         result.AddRange(originalPoints);
 
         // 2. 내부 경로 찾기 (도착 -> 출발)
         Vector2Int start = originalPoints[^1];  // 도착점
         Vector2Int end = originalPoints[0];     // 출발점
-        
+
         List<Vector2Int> safePath = FindPathThroughOwnedArea(start, end, ownerValue);
 
         if (safePath != null && safePath.Count > 0)
@@ -247,12 +247,12 @@ public class MapManager : MonoBehaviour
         }
 
         // 디버그 로그
-        Debug.Log("완성된 폐곡선 경로:");
-        for (int i = 0; i < result.Count; i++)
-        {
-            Debug.Log($"점 {i}: {result[i]} " + 
-                (i < originalPoints.Count ? "(외부 경로)" : "(내부 경로)"));
-        }
+        // Debug.Log("완성된 폐곡선 경로:");
+        // for (int i = 0; i < result.Count; i++)
+        // {
+        //     Debug.Log($"점 {i}: {result[i]} " + 
+        //         (i < originalPoints.Count ? "(외부 경로)" : "(내부 경로)"));
+        // }
 
         return result;
     }
@@ -265,7 +265,7 @@ public class MapManager : MonoBehaviour
         var parentMap = new Dictionary<Vector2Int, Vector2Int>();
         var directionMap = new Dictionary<Vector2Int, Vector2Int>(); // 각 지점의 진행 방향 저장
 
-        Debug.Log($"경로 탐색 시작: {start} → {end}, 소유자: {ownerValue}");
+        // Debug.Log($"경로 탐색 시작: {start} → {end}, 소유자: {ownerValue}");
         queue.Enqueue(start);
         visited.Add(start);
 
@@ -299,10 +299,6 @@ public class MapManager : MonoBehaviour
             }
         }
 
-        Debug.Log(foundPath
-            ? $"경로 탐색 성공: {start} → {end}"
-            : $"경로 탐색 실패: {start} → {end}");
-
         if (foundPath)
         {
             Vector2Int current = end;
@@ -325,11 +321,6 @@ public class MapManager : MonoBehaviour
             path.Add(start); // 시작점 추가
             path.Reverse();
 
-            Debug.Log($"찾은 경로의 꼭짓점 개수: {path.Count}");
-            foreach (var point in path)
-            {
-                Debug.Log($"꼭짓점: {point}");
-            }
         }
 
         return path;
@@ -352,7 +343,7 @@ public class MapManager : MonoBehaviour
                 Vector2Int candidate = p + offset;
                 if (InBounds(candidate) && IsPointInPolygon(new Vector2(candidate.x + 0.5f, candidate.y + 0.5f), polygon))
                 {
-                    Debug.Log($"내부 점 찾음: {candidate}, 기준점: {p}, 사용된 offset: {offset}");
+                    // Debug.Log($"내부 점 찾음: {candidate}, 기준점: {p}, 사용된 offset: {offset}");
                     return candidate;
                 }
             }
