@@ -170,17 +170,21 @@ public class GameController : MonoBehaviour
                 mainCamera.transform.position = new Vector3(lastPosition.x, lastPosition.y, -10f);
                 cameraFollowMode = false; // 고정 모드로 전환
                 followingPlayerId = -1; // 추적 대상 초기화
-            }            // 플레이어 오브젝트 파괴
+            }
+
+            // 플레이어 오브젝트 파괴
             Destroy(player);
 
             // 사망한 플레이어의 궤적 제거
             if (MapManager.Instance != null)
             {
                 MapManager.Instance.ClearPlayerTrails(playerId);
+                // 영토도 제거
+                MapManager.Instance.ClearPlayerTerritory(playerId);
             }
         }
 
-        // 점수 초기화하거나 사망 처리 추가
+        // 점수를 -1로 설정 (사망 표시)
         SetScore(playerId, -1);
     }
 

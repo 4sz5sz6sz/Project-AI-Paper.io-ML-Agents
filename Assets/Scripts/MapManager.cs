@@ -1,8 +1,11 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System.Collections;
+using System.Linq;
 
 public class MapManager : MonoBehaviour
-{    // ─────────────────────────────────────────────────
+{
+    // ─────────────────────────────────────────────────
     // 싱글톤 인스턴스
     public static MapManager Instance { get; private set; }
     // ─────────────────────────────────────────────────
@@ -25,11 +28,11 @@ public class MapManager : MonoBehaviour
             Destroy(gameObject);
             return;
         }
-        Instance = this;        // 맵 상태 초기화
+        Instance = this;
+
+        // 맵 상태 초기화
         tileStates = new int[width, height];
         trailStates = new int[width, height]; // 궤적 상태도 초기화
-
-        // Start()로 이동하여 플레이어들이 모두 생성된 후 영역 초기화
     }
 
     void Start()
@@ -141,10 +144,12 @@ public class MapManager : MonoBehaviour
     /// <param name="pos">위치</param>
     /// <returns>플레이어 ID (0이면 궤적 없음, -1이면 맵 범위 밖)</returns>
     public int GetTrail(Vector2Int pos)
-        => InBounds(pos) ? trailStates[pos.x, pos.y] : -1;    /// <summary>
-                                                              /// 특정 플레이어의 모든 궤적을 제거합니다.
-                                                              /// </summary>
-                                                              /// <param name="playerId">제거할 플레이어 ID</param>
+        => InBounds(pos) ? trailStates[pos.x, pos.y] : -1;
+
+    /// <summary>
+    /// 특정 플레이어의 모든 궤적을 제거합니다.
+    /// </summary>
+    /// <param name="playerId">제거할 플레이어 ID</param>
     public void ClearPlayerTrails(int playerId)
     {
         for (int x = 0; x < width; x++)
@@ -156,6 +161,30 @@ public class MapManager : MonoBehaviour
                     trailStates[x, y] = 0;
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// 특정 플레이어의 모든 영토(타일)를 제거합니다.
+    /// </summary>
+    /// <param name="playerId">제거할 플레이어 ID</param>
+    public void ClearPlayerTerritory(int playerId)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                if (tileStates[x, y] == playerId)
+                {
+                    tileStates[x, y] = 0; // 빈 땅으로 만들기
+                }
+            }
+        }
+
+        // 화면 갱신
+        if (tileRenderer != null)
+        {
+            tileRenderer.RedrawAllTiles();
         }
     }
 
@@ -176,52 +205,57 @@ public class MapManager : MonoBehaviour
             int totalCount = (tileRenderer != null)
                 ? tileRenderer.GetGreenCount()
                 : 0;
-            Debug.Log($"[MapManager] 총 초록 타일 (변화 없음): {totalCount}");
+            GameController.Instance?.SetScore(ownerValue, totalCount);
             return 0;
+        }        // 사전 갱신 스코어 계산 (해당 플레이어의 타일 수만 계산)
+        int before = 0;
+        if (tileRenderer != null)
+        {
+            before = tileRenderer.GetPlayerTileCount(ownerValue);
+        }        // 2) 안전한 폐곡선 폴리곤 생성
+        List<Vector2Int> safePolygon = CreateSafePolygon(cornerPoints, ownerValue);        // 3) 경계선 그리기
+        PaintBoundary(safePolygon, ownerValue);
+
+        // 경계선 그리기 후 즉시 렌더링
+        if (tileRenderer != null)
+        {
+            tileRenderer.RedrawAllTiles();
         }
 
-        // 2) 채우기 전 전체 초록 개수
-        int before = (tileRenderer != null)
-            ? tileRenderer.GetGreenCount()
-            : 0;
-        // 3) FloodFill
-        // 시작점과 끝점 사이에 내 영역 내부의 점들을 찾아 추가
-        var safeCornerPoints = CreateSafePolygon(cornerPoints, ownerValue);
+        // 4) 내부 채우기
+        Vector2Int interiorPoint = FindInteriorPoint(safePolygon);
+        FloodFill(interiorPoint, safePolygon, ownerValue);
 
-        // 내부 점 찾기 및 채우기 (먼저 실행)
-        Vector2Int start = FindInteriorPoint(safeCornerPoints);
-        FloodFill(start, safeCornerPoints, ownerValue);
+        // FloodFill 완료 후 즉시 렌더링
+        if (tileRenderer != null)
+        {
+            tileRenderer.RedrawAllTiles();
+        }
 
-        // 경계선 색칠 (나중에 실행)
-        PaintBoundary(safeCornerPoints, ownerValue);
-
-
-
-        // 4) 화면 갱신 + 플레이어 영역 개수 
+        // 사후 계산
         int after = 0;
         if (tileRenderer != null)
         {
-            tileRenderer.RedrawAllTiles(); // 화면은 전체 갱신
             after = tileRenderer.GetPlayerTileCount(ownerValue); // 각 플레이어 타일 개수만 계산
+        }
+        int gained = after - before;
+
+        // 디버그 출력 - 비정상적으로 많은 점수 획득 시 경고
+        if (gained > 1000)
+        {
+            Debug.LogWarning($"[MapManager] 플레이어 {ownerValue}: 비정상적으로 많은 타일 획득! " +
+                           $"이전={before}, 이후={after}, 획득={gained}");
         }
         else
         {
-            after = before;
+            Debug.Log($"[MapManager] 플레이어 {ownerValue}: " +
+                      $"이전={before}, 이후={after}, 획득={gained}");
         }
 
-        int addedCount = after - before;
+        // GameController에 업데이트된 점수 설정
+        GameController.Instance?.SetScore(ownerValue, after);
 
-        // 5) 로그 출력
-        Debug.Log($"[MapManager] 이번에 추가된 타일: {addedCount}");
-        Debug.Log($"[MapManager] 전체 초록 타일: {after}");
-
-        // 6) UI(점수) 업데이트
-        if (GameController.Instance != null)
-            // GameController.Instance.SetScore(after);
-            //점수를 업데이트하는 부분, SetScore(플레이어id, 점수)
-            Debug.Log($"점수 갱신 시도: 플레이어 {ownerValue}, 점수 {after}");
-        GameController.Instance.SetScore(ownerValue, after);
-        return addedCount;
+        return gained;
     }
 
     private void PaintBoundary(List<Vector2Int> points, int ownerValue)
@@ -286,14 +320,6 @@ public class MapManager : MonoBehaviour
             result.AddRange(safePath);
         }
 
-        // 디버그 로그
-        // Debug.Log("완성된 폐곡선 경로:");
-        // for (int i = 0; i < result.Count; i++)
-        // {
-        //     Debug.Log($"점 {i}: {result[i]} " + 
-        //         (i < originalPoints.Count ? "(외부 경로)" : "(내부 경로)"));
-        // }
-
         return result;
     }
 
@@ -303,9 +329,7 @@ public class MapManager : MonoBehaviour
         var visited = new HashSet<Vector2Int>();
         var queue = new Queue<Vector2Int>();
         var parentMap = new Dictionary<Vector2Int, Vector2Int>();
-        var directionMap = new Dictionary<Vector2Int, Vector2Int>(); // 각 지점의 진행 방향 저장
 
-        // Debug.Log($"경로 탐색 시작: {start} → {end}, 소유자: {ownerValue}");
         queue.Enqueue(start);
         visited.Add(start);
 
@@ -331,36 +355,23 @@ public class MapManager : MonoBehaviour
 
                 if (GetTile(next) == ownerValue || end == next) // 소유 영역이거나 도착점인 경우
                 {
-                    queue.Enqueue(next);
                     visited.Add(next);
+                    queue.Enqueue(next);
                     parentMap[next] = current;
-                    directionMap[next] = dir; // 진행 방향 저장
                 }
             }
         }
 
         if (foundPath)
         {
+            // 경로 역추적
             Vector2Int current = end;
-            Vector2Int? lastDirection = null;
-
-            // 경로 역추적하면서 방향 전환점만 저장
             while (parentMap.ContainsKey(current))
             {
-                Vector2Int currentDirection = directionMap[current];
-
-                // 방향이 바뀌는 지점이거나 시작/끝점인 경우에만 추가
-                if (lastDirection == null || currentDirection != lastDirection || current == end || parentMap[current] == start)
-                {
-                    path.Add(current);
-                }
-
-                lastDirection = currentDirection;
+                path.Add(current);
                 current = parentMap[current];
             }
-            path.Add(start); // 시작점 추가
             path.Reverse();
-
         }
 
         return path;
@@ -368,93 +379,74 @@ public class MapManager : MonoBehaviour
 
     private Vector2Int FindInteriorPoint(List<Vector2Int> polygon)
     {
-        // 동서남북 모든 방향 검사
-        Vector2Int[] offsets = {
-            new Vector2Int(1, 0),   // 오른쪽
-            new Vector2Int(-1, 0),  // 왼쪽
-            new Vector2Int(0, 1),   // 위
-            new Vector2Int(0, -1)   // 아래
-        };
+        if (polygon == null || polygon.Count < 3)
+            return Vector2Int.zero;
 
-        foreach (var p in polygon)
+        // 폴리곤의 경계 상자 찾기
+        int minX = polygon.Min(p => p.x);
+        int maxX = polygon.Max(p => p.x);
+        int minY = polygon.Min(p => p.y);
+        int maxY = polygon.Max(p => p.y);
+
+        // 경계 상자 내부에서 폴리곤 내부에 있는 점 찾기
+        for (int y = minY; y <= maxY; y++)
         {
-            foreach (var offset in offsets)
+            for (int x = minX; x <= maxX; x++)
             {
-                Vector2Int candidate = p + offset;
+                Vector2Int candidate = new Vector2Int(x, y);
                 if (InBounds(candidate) && IsPointInPolygon(new Vector2(candidate.x + 0.5f, candidate.y + 0.5f), polygon))
                 {
-                    // Debug.Log($"내부 점 찾음: {candidate}, 기준점: {p}, 사용된 offset: {offset}");
                     return candidate;
                 }
             }
-        }
-
-        // 모든 방향에서 실패한 경우 폴리곤의 중심점 근처 점을 시도
-        Vector2 center = Vector2.zero;
-        foreach (var p in polygon)
-        {
-            center += new Vector2(p.x, p.y);
-        }
-        center /= polygon.Count;
-
-        Vector2Int centerPoint = new Vector2Int(
-            Mathf.RoundToInt(center.x),
-            Mathf.RoundToInt(center.y)
-        );
-
-        Debug.Log($"모든 방향 실패, 중심점 사용: {centerPoint}");
-        return centerPoint;
+        }        // 폴리곤 중심점 계산
+        float centerX = (float)polygon.Average(p => p.x);
+        float centerY = (float)polygon.Average(p => p.y);
+        return new Vector2Int(Mathf.RoundToInt(centerX), Mathf.RoundToInt(centerY));
     }
-
-    // BFS FloodFill
     private void FloodFill(Vector2Int start, List<Vector2Int> poly, int ownerValue)
     {
-        Queue<Vector2Int> queue = new Queue<Vector2Int>();
-        HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
-        Vector2Int[] dirs = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
+        if (!InBounds(start)) return;
+
+        var queue = new Queue<Vector2Int>();
+        var visited = new HashSet<Vector2Int>();
 
         queue.Enqueue(start);
         visited.Add(start);
 
-        // 각 타일의 네 모서리 점을 체크하기 위한 오프셋
-        Vector2[] cornerOffsets = {
-            new Vector2(0.1f, 0.1f),    // 좌하단
-            new Vector2(0.1f, 0.9f),    // 좌상단
-            new Vector2(0.9f, 0.1f),    // 우하단
-            new Vector2(0.9f, 0.9f)     // 우상단
-        };
+        Vector2Int[] dirs = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+        int processedCount = 0; // 처리된 타일 수
 
         while (queue.Count > 0)
         {
             Vector2Int current = queue.Dequeue();
+
             if (!InBounds(current)) continue;
 
-            // 타일의 네 모서리를 모두 체크
-            bool isInside = true;
-            foreach (var offset in cornerOffsets)
+            // 폴리곤 내부에 있는지 확인
+            if (!IsPointInPolygon(new Vector2(current.x + 0.5f, current.y + 0.5f), poly))
+                continue;
+
+            SetTile(current, ownerValue);
+            processedCount++;
+
+            // 50개 타일마다 화면 갱신 (더 빠른 시각적 피드백)
+            if (processedCount % 50 == 0 && tileRenderer != null)
             {
-                Vector2 checkPoint = new Vector2(current.x + offset.x, current.y + offset.y);
-                if (!IsPointInPolygon(checkPoint, poly))
-                {
-                    isInside = false;
-                    break;
-                }
+                tileRenderer.RedrawAllTiles();
             }
 
-            if (!isInside) continue;
-
-            // 타일이 확실히 내부에 있다고 판단되면 색칠
-            SetTile(current, ownerValue);
-
-            // 인접 타일 체크
             foreach (var dir in dirs)
             {
                 Vector2Int next = current + dir;
-                if (!visited.Contains(next))
+                if (!visited.Contains(next) && InBounds(next))
                 {
-                    visited.Add(next);
-                    queue.Enqueue(next);
-
+                    // 다음 점도 폴리곤 내부에 있는지 미리 확인
+                    if (IsPointInPolygon(new Vector2(next.x + 0.5f, next.y + 0.5f), poly))
+                    {
+                        visited.Add(next);
+                        queue.Enqueue(next);
+                    }
                 }
             }
         }
