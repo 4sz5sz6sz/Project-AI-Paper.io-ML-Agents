@@ -32,10 +32,10 @@ public class MyAgent : Agent
         gameManager = GameController.Instance;
 
         Debug.Log("[MyAgent] Initialize 완료 - 계층적 관찰 시스템 (85차원 벡터)");
-    }
-
-    public override void OnEpisodeBegin()
+    }    public override void OnEpisodeBegin()
     {
+        Debug.Log($"[MyAgent] 새 에피소드 시작 - Player {controller?.playerID}");
+        
         if (mapManager != null)
         {
             mapManager.InitializePlayerScores();
@@ -55,6 +55,7 @@ public class MyAgent : Agent
             return;
         }
 
+        // 보상 초기화
         SetReward(0f);
     }
 
@@ -232,68 +233,74 @@ public class MyAgent : Agent
             }
         }
         return occupied / 1250f;
-    }
-
-    public override void OnActionReceived(ActionBuffers actions)
+    }    public override void OnActionReceived(ActionBuffers actions)
     {
         int action = actions.DiscreteActions[0];
 
         if (controller != null && action >= 0 && action < possibleActions.Length)
         {
             controller.SetDirection(possibleActions[action]);
+            
+            // 유효한 행동에 대한 작은 보상
+            AddReward(0.001f);
         }
         else
         {
-            AddReward(-0.01f);
+            AddReward(-0.05f); // 잘못된 행동에 더 큰 페널티
             if (controller == null) Debug.LogError("MyAgent: AIPlayerController가 없어 행동을 수행할 수 없습니다.");
             else Debug.LogWarning($"MyAgent: Received invalid action index: {action}");
         }
 
-        // 매 스텝마다 작은 페널티
-        AddReward(-0.01f);
+        // 생존에 대한 작은 보상 (매 스텝마다)
+        AddReward(0.002f);
 
         // 게임 종료 체크
         if (gameManager != null && controller != null)
         {
             float currentScore = gameManager.GetScore(controller.playerID);
+            float previousScore = GetCumulativeReward();
+
+            // 영역 확장에 대한 보상
+            if (currentScore > 0)
+            {
+                AddReward(currentScore * 0.001f); // 점수에 비례한 보상
+            }
 
             if (currentScore < 0) // 죽음
             {
-                SetReward(-5.0f);
+                SetReward(-10.0f); // 더 큰 사망 페널티
+                Debug.Log($"MyAgent({controller.playerID}): 사망하여 에피소드 종료. 즉시 재시작.");
                 EndEpisode();
-                Debug.Log($"MyAgent({controller.playerID}): 사망하여 에피소드 종료.");
                 return;
             }
 
             if (currentScore >= 500) // 승리
             {
-                SetReward(5.0f);
+                SetReward(20.0f); // 더 큰 승리 보상
+                Debug.Log($"MyAgent({controller.playerID}): 승리하여 에피소드 종료. 즉시 재시작.");
                 EndEpisode();
-                Debug.Log($"MyAgent({controller.playerID}): 승리하여 에피소드 종료.");
                 return;
             }
         }
-    }
-
-    public override void Heuristic(in ActionBuffers actionsOut)
+    }    public override void Heuristic(in ActionBuffers actionsOut)
     {
         var discreteActionsOut = actionsOut.DiscreteActions;
         discreteActionsOut.Clear();
 
-        // WASD 키로 에이전트 수동 제어
-        if (Input.GetKey(KeyCode.W)) // 위
+        // IJKL 키로 에이전트 수동 제어 (Player1 WASD와 구분)
+        if (Input.GetKey(KeyCode.I)) // 위
         {
             discreteActionsOut[0] = 0;
         }
-        else if (Input.GetKey(KeyCode.D)) // 오른쪽
+        else if (Input.GetKey(KeyCode.L)) // 오른쪽
         {
             discreteActionsOut[0] = 1;
         }
-        else if (Input.GetKey(KeyCode.S)) // 아래
+        else if (Input.GetKey(KeyCode.K)) // 아래
         {
             discreteActionsOut[0] = 2;
         }
-        else if (Input.GetKey(KeyCode.A)) // 왼쪽
+        else if (Input.GetKey(KeyCode.J)) // 왼쪽
         {
             discreteActionsOut[0] = 3;
         }
