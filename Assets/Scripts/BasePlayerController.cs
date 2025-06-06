@@ -22,6 +22,11 @@ public abstract class BasePlayerController : MonoBehaviour
     protected MapManager mapManager;          // private MapManager mapManager;
     public bool wasInsideOwnedArea = false;        // private bool wasInsideOwnedArea = false;
 
+    // 카메라 제어 관련 정적 변수
+    private static Camera mainCamera;
+    private static bool cameraFollowMode = false; // true면 특정 플레이어 추적, false면 고정
+    private static int followingPlayerId = -1;
+
     // PlayerController.cs의 Start() 함수에 대응
     protected virtual void Start()
     {
@@ -31,14 +36,21 @@ public abstract class BasePlayerController : MonoBehaviour
 
         InitializeComponents();
 
+        // 카메라 초기화 (한 번만)
+        if (mainCamera == null)
+        {
+            mainCamera = Camera.main;
+        }
+
         // 메인 플레이어면 카메라 설정
         if (isMainPlayer)
         {
-            var camera = Camera.main;
-            if (camera != null)
+            if (mainCamera != null)
             {
-                camera.transform.parent = transform;
-                camera.transform.localPosition = new Vector3(0, 0, -10);
+                mainCamera.transform.parent = transform;
+                mainCamera.transform.localPosition = new Vector3(0, 0, -10);
+                followingPlayerId = cornerTracker?.playerId ?? 1;
+                cameraFollowMode = true;
             }
         }
 
@@ -65,7 +77,75 @@ public abstract class BasePlayerController : MonoBehaviour
     // PlayerController.cs의 Update() 함수에 대응
     protected virtual void Update()
     {
+        HandleCameraControl(); // 카메라 제어 처리
         HandleMovement();  // Update() 내부의 이동 처리 부분
+    }
+
+    // 카메라 제어 입력 처리
+    private void HandleCameraControl()
+    {
+        if (mainCamera == null) return;
+
+        // 1, 2, 3, 4 키 입력으로 카메라를 특정 플레이어에게 고정
+        if (Input.GetKeyDown(KeyCode.Alpha1))
+        {
+            SwitchCameraToPlayer(1);
+        }
+        else if (Input.GetKeyDown(KeyCode.Alpha2))
+        {
+            SwitchCameraToPlayer(2);
+        }
+        else if (Input.GetKeyDown(KeyCode.Alpha3))
+        {
+            SwitchCameraToPlayer(3);
+        }
+        else if (Input.GetKeyDown(KeyCode.Alpha4))
+        {
+            SwitchCameraToPlayer(4);
+        }
+
+        // 현재 추적 중인 플레이어가 있고, 팔로우 모드라면 카메라 위치 업데이트
+        if (cameraFollowMode && followingPlayerId > 0)
+        {
+            GameObject targetPlayer = GameController.Instance?.FindPlayerById(followingPlayerId);
+            if (targetPlayer != null)
+            {
+                mainCamera.transform.parent = targetPlayer.transform;
+                mainCamera.transform.localPosition = new Vector3(0, 0, -10);
+            }
+            else
+            {
+                // 추적 중인 플레이어가 사망했으면 고정 모드로 전환
+                cameraFollowMode = false;
+                mainCamera.transform.parent = null;
+            }
+        }
+    }
+
+    private static void SwitchCameraToPlayer(int playerId)
+    {
+        if (mainCamera == null) return;
+
+        GameObject targetPlayer = GameController.Instance?.FindPlayerById(playerId);
+        if (targetPlayer != null)
+        {
+            Debug.Log($"📷 카메라를 플레이어 {playerId}로 전환");
+            
+            // 카메라를 해당 플레이어에게 부착
+            mainCamera.transform.parent = targetPlayer.transform;
+            mainCamera.transform.localPosition = new Vector3(0, 0, -10);
+            
+            followingPlayerId = playerId;
+            cameraFollowMode = true;
+        }
+        else
+        {
+            Debug.Log($"❌ 플레이어 {playerId}를 찾을 수 없습니다 (사망했거나 존재하지 않음)");
+            
+            // 플레이어가 없으면 현재 위치에 고정
+            mainCamera.transform.parent = null;
+            cameraFollowMode = false;
+        }
     }
 
     // PlayerController.cs의 키보드 입력 처리 부분을 추상화
