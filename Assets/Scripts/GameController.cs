@@ -50,16 +50,31 @@ public class GameController : MonoBehaviour
             playerTexts[playerId - 1].text = $"P{playerId}: {playerScores[playerId]}";
         }
     }
-
     public void KillPlayer(int playerId)
     {
         Debug.Log($"💀 플레이어 {playerId}가 사망했습니다.");
 
-        // 예: 플레이어 오브젝트 비활성화
+        // 플레이어 오브젝트 찾기
         GameObject player = FindPlayerById(playerId);
         if (player != null)
         {
-            // Destroy(player);
+            BasePlayerController playerController = player.GetComponent<BasePlayerController>();
+
+            // 메인 플레이어(카메라를 가진 플레이어)인지 확인
+            if (playerController != null && playerController.isMainPlayer)
+            {
+                // 카메라를 플레이어의 마지막 위치에 고정
+                var camera = Camera.main;
+                if (camera != null)
+                {
+                    camera.transform.parent = null; // 부모 연결 해제
+                    camera.transform.position = new Vector3(player.transform.position.x, player.transform.position.y, -10f);
+                    Debug.Log($"📷 카메라를 플레이어 {playerId}의 마지막 위치에 고정: {camera.transform.position}");
+                }
+            }
+
+            // 플레이어 오브젝트 파괴
+            Destroy(player);
         }
 
         // 점수 초기화하거나 사망 처리 추가
@@ -68,7 +83,7 @@ public class GameController : MonoBehaviour
 
     public GameObject FindPlayerById(int id)
     {
-        BasePlayerController[] allPlayers = FindObjectsOfType<BasePlayerController>();
+        BasePlayerController[] allPlayers = FindObjectsByType<BasePlayerController>(FindObjectsSortMode.None);
         foreach (var player in allPlayers)
         {
             if (player.GetComponent<CornerPointTracker>()?.playerId == id)
