@@ -74,10 +74,25 @@ public class MyAgent : Agent
         }
 
         // 에이전트 재스폰 위치 설정
-        Vector2Int spawnPos = new Vector2Int(
-            controller.playerID == 2 ? 45 : 5,
-            controller.playerID == 2 ? 20 : 5
-        );
+        Vector2Int spawnPos;
+        switch (controller.playerID)
+        {
+            case 1:
+                spawnPos = new Vector2Int(5, 5);
+                break;
+            case 2:
+                spawnPos = new Vector2Int(45, 5);
+                break;
+            case 3:
+                spawnPos = new Vector2Int(45, 35);
+                break;
+            case 4:
+                spawnPos = new Vector2Int(5, 35);
+                break;
+            default:
+                spawnPos = new Vector2Int(25, 20); // 예외 처리용 중앙 스폰
+                break;
+        }
 
         previousPosition = spawnPos;
 
@@ -96,7 +111,7 @@ public class MyAgent : Agent
         // 추가적인 상태 안정화를 위한 지연 후 확인
         Invoke(nameof(VerifyRespawnState), 0.2f);
 
-        Debug.Log($"[MyAgent] Player {controller.playerID} 완전 재스폰 완료 - 위치: {spawnPos}");
+        // Debug.Log($"[MyAgent] Player {controller.playerID} 완전 재스폰 완료 - 위치: {spawnPos}");
     }
 
     private void VerifyRespawnState()
@@ -105,18 +120,18 @@ public class MyAgent : Agent
         if (controller != null && gameManager != null)
         {
             int currentScore = gameManager.GetScore(controller.playerID);
-            Debug.Log($"[MyAgent] 재스폰 후 상태 검증 - Player {controller.playerID} 점수: {currentScore}");
+            // Debug.Log($"[MyAgent] 재스폰 후 상태 검증 - Player {controller.playerID} 점수: {currentScore}");
 
             if (currentScore <= 0)
             {
-                Debug.LogWarning($"[MyAgent] Player {controller.playerID} 재스폰 후에도 점수가 {currentScore}입니다. 강제 초기화 시도...");
+                // Debug.LogWarning($"[MyAgent] Player {controller.playerID} 재스폰 후에도 점수가 {currentScore}입니다. 강제 초기화 시도...");
 
                 // 강제로 점수 재설정
                 if (mapManager != null)
                 {
                     int initialScore = 10 * 10; // INITIAL_TERRITORY_SIZE * INITIAL_TERRITORY_SIZE
                     gameManager.SetScore(controller.playerID, initialScore);
-                    Debug.Log($"[MyAgent] Player {controller.playerID} 점수를 {initialScore}로 강제 설정");
+                    // Debug.Log($"[MyAgent] Player {controller.playerID} 점수를 {initialScore}로 강제 설정");
                 }
             }
         }
@@ -214,7 +229,7 @@ public class MyAgent : Agent
         float currentScore = gameManager?.GetScore(myPlayerID) ?? 0f;
         sensor.AddObservation(currentScore / 10000f);
 
-        Debug.Log($"[MyAgent] 🎯 ULTRA 최적화된 관찰 완료 - 총 1334차원 (45핵심x5 + 625타일 + 625궤적 + 9근접 + 10위험 + 15적위협 + 5기본)");
+        // Debug.Log($"[MyAgent] 🎯 ULTRA 최적화된 관찰 완료 - 총 1334차원 (45핵심x5 + 625타일 + 625궤적 + 9근접 + 10위험 + 15적위협 + 5기본)");
     }
 
     // **🔥 ULTRA: 3x3 영역의 초고중요도 정보 (9차원) - 모델이 중요도를 확실히 인식하도록**
@@ -747,7 +762,7 @@ public class MyAgent : Agent
         {
             isDead = true;
             SetReward(-10.0f); // 사망 페널티
-            Debug.Log($"MyAgent({controller?.playerID}): 사망 감지됨. 즉시 재시작.");
+            // Debug.Log($"MyAgent({controller?.playerID}): 사망 감지됨. 즉시 재시작.");
 
             // 약간의 지연을 두고 에피소드 종료 (상태 안정화)
             Invoke(nameof(DelayedEndEpisode), 0.1f);
@@ -766,22 +781,22 @@ public class MyAgent : Agent
             if (gainedTiles >= 50)
             {
                 territoryReward += 25.0f; // 대규모 확장 보너스
-                Debug.Log($"[MyAgent] 🏆 MASSIVE TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 대규모 보너스!");
+                // Debug.Log($"[MyAgent] 🏆 MASSIVE TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 대규모 보너스!");
             }
             else if (gainedTiles >= 20)
             {
                 territoryReward += 10.0f; // 중규모 확장 보너스
-                Debug.Log($"[MyAgent] 🎖️ LARGE TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 중규모 보너스!");
+                // Debug.Log($"[MyAgent] 🎖️ LARGE TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 중규모 보너스!");
             }
             else if (gainedTiles >= 10)
             {
                 territoryReward += 5.0f; // 소규모 확장 보너스
-                Debug.Log($"[MyAgent] 🥇 GOOD TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 소규모 보너스!");
+                // Debug.Log($"[MyAgent] 🥇 GOOD TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 소규모 보너스!");
             }
 
             AddReward(territoryReward);
-            Debug.Log($"[MyAgent] 💰 TERRITORY REWARD! Player {controller?.playerID}: " +
-                     $"획득 타일 {gainedTiles}개 → 보상 {territoryReward:F2}점!");
+            // Debug.Log($"[MyAgent] 💰 TERRITORY REWARD! Player {controller?.playerID}: " +
+            //          $"획득 타일 {gainedTiles}개 → 보상 {territoryReward:F2}점!");
 
             // 🎯 연속 영역 확보 감지 및 추가 보상
             RegisterTerritoryExpansion(gainedTiles);
@@ -806,8 +821,8 @@ public class MyAgent : Agent
             // 연속 확장 보너스
             float consecutiveBonus = consecutiveTerritoryGains * 2.0f;
             AddReward(consecutiveBonus);
-            Debug.Log($"[MyAgent] 🔥 CONSECUTIVE EXPANSION! Player {controller?.playerID}: " +
-                     $"연속 {consecutiveTerritoryGains}회 → 추가 보상 {consecutiveBonus:F2}점!");
+            // Debug.Log($"[MyAgent] 🔥 CONSECUTIVE EXPANSION! Player {controller?.playerID}: " +
+            //          $"연속 {consecutiveTerritoryGains}회 → 추가 보상 {consecutiveBonus:F2}점!");
         }
         else
         {
@@ -820,8 +835,8 @@ public class MyAgent : Agent
         if (totalTerritoryGainedThisEpisode >= 100)
         {
             AddReward(15.0f); // 에피소드 내 100 타일 이상 확보 시 특별 보상
-            Debug.Log($"[MyAgent] 👑 EPISODE MASTER! Player {controller?.playerID}: " +
-                     $"총 {totalTerritoryGainedThisEpisode} 타일 확보!");
+            // Debug.Log($"[MyAgent] 👑 EPISODE MASTER! Player {controller?.playerID}: " +
+            //          $"총 {totalTerritoryGainedThisEpisode} 타일 확보!");
         }
     }
 
@@ -847,7 +862,7 @@ public class MyAgent : Agent
             // **경계 밖으로 나가려는 시도를 강력히 차단**
             if (!mapManager.InBounds(nextPos))
             {
-                Debug.LogWarning($"[MyAgent] 경계 밖 이동 시도 차단! 현재: {currentPos}, 다음: {nextPos}");
+                // Debug.LogWarning($"[MyAgent] 경계 밖 이동 시도 차단! 현재: {currentPos}, 다음: {nextPos}");
                 AddReward(-5.0f); // 경계 이동 시도에 매우 큰 페널티
 
                 // 안전한 방향으로 강제 변경
@@ -855,13 +870,13 @@ public class MyAgent : Agent
                 if (safeDirection != Vector2Int.zero)
                 {
                     newDirection = safeDirection;
-                    Debug.Log($"[MyAgent] 안전한 방향으로 변경: {safeDirection}");
+                    // Debug.Log($"[MyAgent] 안전한 방향으로 변경: {safeDirection}");
                 }
                 else
                 {
                     // 모든 방향이 위험하면 현재 방향 유지
                     newDirection = controller.direction;
-                    Debug.LogWarning("[MyAgent] 모든 방향이 위험! 현재 방향 유지");
+                    // Debug.LogWarning("[MyAgent] 모든 방향이 위험! 현재 방향 유지");
                 }
             }
 
@@ -872,7 +887,7 @@ public class MyAgent : Agent
                 int nextTrail = mapManager.GetTrail(nextPos);
                 if (nextTrail == controller.playerID)
                 {
-                    Debug.LogWarning($"[MyAgent] 자기 궤적 충돌 시도 차단! 현재: {currentPos}, 다음: {nextPos}");
+                    // Debug.LogWarning($"[MyAgent] 자기 궤적 충돌 시도 차단! 현재: {currentPos}, 다음: {nextPos}");
                     AddReward(-10.0f); // 자기 궤적 충돌 시도에 매우 큰 페널티
 
                     // 안전한 방향으로 강제 변경
@@ -880,14 +895,15 @@ public class MyAgent : Agent
                     if (safeDirection != Vector2Int.zero)
                     {
                         newDirection = safeDirection;
-                        Debug.Log($"[MyAgent] 궤적 충돌 방지를 위해 안전한 방향으로 변경: {safeDirection}");
+                        // Debug.Log($"[MyAgent] 궤적 충돌 방지를 위해 안전한 방향으로 변경: {safeDirection}");
                     }
                     else
                     {
-                        // 모든 방향이 위험하면 에피소드 종료
-                        Debug.LogError("[MyAgent] 모든 방향이 위험! 에피소드 종료");
+                        // // 모든 방향이 위험하면 에피소드 종료
+                        // Debug.LogError("[MyAgent] 모든 방향이 위험! 에피소드 종료");
                         AddReward(-20.0f);
-                        NotifyDeath();
+                        // NotifyDeath();
+                        gameManager.KillPlayer(controller.playerID);
                         return;
                     }
                 }
@@ -908,7 +924,7 @@ public class MyAgent : Agent
 
             if (currentScore < 0)
             {
-                Debug.Log($"MyAgent({controller.playerID}): 점수 기반 사망 감지 (score: {currentScore})");
+                // Debug.Log($"MyAgent({controller.playerID}): 점수 기반 사망 감지 (score: {currentScore})");
                 NotifyDeath();
                 return;
             }
@@ -976,30 +992,30 @@ public class MyAgent : Agent
 
     public override void Heuristic(in ActionBuffers actionsOut)
     {
-        var discreteActionsOut = actionsOut.DiscreteActions;
+        // var discreteActionsOut = actionsOut.DiscreteActions;
 
-        int selectedAction = -1;
+        // int selectedAction = -1;
 
-        // IJKL 키로 에이전트 수동 제어
-        if (Input.GetKey(KeyCode.I) || Input.GetKeyDown(KeyCode.I)) selectedAction = 0; // 위
-        else if (Input.GetKey(KeyCode.L) || Input.GetKeyDown(KeyCode.L)) selectedAction = 1; // 오른쪽
-        else if (Input.GetKey(KeyCode.K) || Input.GetKeyDown(KeyCode.K)) selectedAction = 2; // 아래
-        else if (Input.GetKey(KeyCode.J) || Input.GetKeyDown(KeyCode.J)) selectedAction = 3; // 왼쪽
+        // // IJKL 키로 에이전트 수동 제어
+        // if (Input.GetKey(KeyCode.I) || Input.GetKeyDown(KeyCode.I)) selectedAction = 0; // 위
+        // else if (Input.GetKey(KeyCode.L) || Input.GetKeyDown(KeyCode.L)) selectedAction = 1; // 오른쪽
+        // else if (Input.GetKey(KeyCode.K) || Input.GetKeyDown(KeyCode.K)) selectedAction = 2; // 아래
+        // else if (Input.GetKey(KeyCode.J) || Input.GetKeyDown(KeyCode.J)) selectedAction = 3; // 왼쪽
 
-        if (selectedAction >= 0)
-        {
-            discreteActionsOut[0] = selectedAction;
-        }
-        else
-        {
-            // 현재 방향 유지
-            Vector2Int currentDir = controller?.direction ?? Vector2Int.zero;
-            if (currentDir == Vector2Int.up) discreteActionsOut[0] = 0;
-            else if (currentDir == Vector2Int.right) discreteActionsOut[0] = 1;
-            else if (currentDir == Vector2Int.down) discreteActionsOut[0] = 2;
-            else if (currentDir == Vector2Int.left) discreteActionsOut[0] = 3;
-            else discreteActionsOut[0] = 1; // 기본값: 오른쪽
-        }
+        // if (selectedAction >= 0)
+        // {
+        //     discreteActionsOut[0] = selectedAction;
+        // }
+        // else
+        // {
+        //     // 현재 방향 유지
+        //     Vector2Int currentDir = controller?.direction ?? Vector2Int.zero;
+        //     if (currentDir == Vector2Int.up) discreteActionsOut[0] = 0;
+        //     else if (currentDir == Vector2Int.right) discreteActionsOut[0] = 1;
+        //     else if (currentDir == Vector2Int.down) discreteActionsOut[0] = 2;
+        //     else if (currentDir == Vector2Int.left) discreteActionsOut[0] = 3;
+        //     else discreteActionsOut[0] = 1; // 기본값: 오른쪽
+        // }
     }
 
     // **🚨 NEW: 적 위협 평가 기반 향상된 보상 시스템**
@@ -1031,13 +1047,13 @@ public class MyAgent : Agent
             {
                 // ✅ 올바른 대피 행동에 대한 강력한 보상
                 AddReward(2.0f);
-                Debug.Log($"[MyAgent] 🚨 위협 회피: 안전지대 향해 올바른 대피! 위협도: {currentThreatLevel:F2}");
+                // Debug.Log($"[MyAgent] 🚨 위협 회피: 안전지대 향해 올바른 대피! 위협도: {currentThreatLevel:F2}");
             }
             else
             {
                 // ❌ 위험한 상황에서 잘못된 방향 이동에 대한 강력한 페널티
                 AddReward(-1.5f);
-                Debug.Log($"[MyAgent] ⚠️ 위협 무시: 위험한 상황에서 잘못된 이동! 위협도: {currentThreatLevel:F2}");
+                // Debug.Log($"[MyAgent] ⚠️ 위협 무시: 위험한 상황에서 잘못된 이동! 위협도: {currentThreatLevel:F2}");
             }
 
             // 영역 확장 시도 시 추가 페널티
@@ -1047,7 +1063,7 @@ public class MyAgent : Agent
                 if (nextTile == 0) // 중립 지역으로 확장 시도
                 {
                     AddReward(-1.5f); // 위험한 상황에서 확장 시도는 매우 위험
-                    Debug.Log("[MyAgent] ❌ 위험 상황에서 영역 확장 시도 - 강력한 페널티!");
+                    // Debug.Log("[MyAgent] ❌ 위험 상황에서 영역 확장 시도 - 강력한 페널티!");
                 }
             }
         }
@@ -1064,7 +1080,7 @@ public class MyAgent : Agent
             {
                 // 안전지대가 가까우면 안전한 방향 이동 보상
                 AddReward(1.5f);
-                Debug.Log("[MyAgent] 🛡️ 안전지대 근처에서 올바른 방향 이동!");
+                // Debug.Log("[MyAgent] 🛡️ 안전지대 근처에서 올바른 방향 이동!");
             }
         }
         else
