@@ -70,3 +70,13 @@ crashlytics-build.properties
 # Temporary auto-generated Android Assets
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# ML-Agents Training Results (매우 중요!)
+results/
+models/
+*.onnx
+*.nn
+summaries/
+run_logs/
+*_training/
+curriculum*.json
