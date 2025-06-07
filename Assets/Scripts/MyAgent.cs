@@ -17,12 +17,10 @@ public class MyAgent : Agent
         Vector2Int.right, // 1
         Vector2Int.down,  // 2
         Vector2Int.left   // 3
-    };
-
-    // **이동 히스토리 추적 (직선 이동 감지용)**
+    };    // **이동 히스토리 추적 (간소화된 패턴 감지용)**
     private Queue<Vector2Int> directionHistory = new Queue<Vector2Int>();
     private Queue<Vector2Int> positionHistory = new Queue<Vector2Int>();
-    private const int HISTORY_SIZE = 8;
+    private const int HISTORY_SIZE = 4; // 8에서 4로 줄임 - 더 유연한 이동 허용
 
     private bool isDead = false;
     private const int MAX_STEPS_WITHOUT_PROGRESS = 500;
@@ -45,7 +43,6 @@ public class MyAgent : Agent
 
         Debug.Log("[MyAgent] Initialize 완료 - 🎯 3x3 중심 ULTRA 최적화 관찰 시스템 (1,319차원)");
     }
-
     public override void OnEpisodeBegin()
     {
         Debug.Log($"[MyAgent] Player {controller?.playerID} 에피소드 시작");
@@ -54,6 +51,11 @@ public class MyAgent : Agent
         previousScore = 0f;
         stepsWithoutProgress = 0;
         isDead = false;
+
+        // **🚨 NEW: 영역 확보 추적 변수 초기화**
+        consecutiveTerritoryGains = 0;
+        lastTerritoryTime = 0f;
+        totalTerritoryGainedThisEpisode = 0;
 
         // **히스토리 초기화**
         directionHistory.Clear();
@@ -739,7 +741,6 @@ public class MyAgent : Agent
         // 막힌 방향이 많을수록 경로가 비최적
         return 1f - (blockedDirections / 4f);
     }
-
     public void NotifyDeath()
     {
         if (!isDead) // 중복 호출 방지
@@ -750,6 +751,77 @@ public class MyAgent : Agent
 
             // 약간의 지연을 두고 에피소드 종료 (상태 안정화)
             Invoke(nameof(DelayedEndEpisode), 0.1f);
+        }
+    }
+
+    // **🚨 NEW: 영역 완성 감지 및 보상 시스템**
+    public void NotifyTerritoryCompletion(int gainedTiles)
+    {
+        if (gainedTiles > 0)
+        {
+            // 📈 획득한 타일 수에 비례하는 압도적인 보상 시스템
+            float territoryReward = gainedTiles * 1.5f; // 기본 생존 보상(0.01f) 대비 150배 강력
+
+            // 🎯 대규모 영역 확보 시 추가 보너스
+            if (gainedTiles >= 50)
+            {
+                territoryReward += 25.0f; // 대규모 확장 보너스
+                Debug.Log($"[MyAgent] 🏆 MASSIVE TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 대규모 보너스!");
+            }
+            else if (gainedTiles >= 20)
+            {
+                territoryReward += 10.0f; // 중규모 확장 보너스
+                Debug.Log($"[MyAgent] 🎖️ LARGE TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 중규모 보너스!");
+            }
+            else if (gainedTiles >= 10)
+            {
+                territoryReward += 5.0f; // 소규모 확장 보너스
+                Debug.Log($"[MyAgent] 🥇 GOOD TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 소규모 보너스!");
+            }
+
+            AddReward(territoryReward);
+            Debug.Log($"[MyAgent] 💰 TERRITORY REWARD! Player {controller?.playerID}: " +
+                     $"획득 타일 {gainedTiles}개 → 보상 {territoryReward:F2}점!");
+
+            // 🎯 연속 영역 확보 감지 및 추가 보상
+            RegisterTerritoryExpansion(gainedTiles);
+        }
+    }    // **🚨 NEW: 연속 영역 확보 추적 및 효율성 보상**
+    private int consecutiveTerritoryGains = 0;
+    private float lastTerritoryTime = 0f;
+    private int totalTerritoryGainedThisEpisode = 0;
+
+    // **🚨 NEW: 플레이어 ID 확인용 public 프로퍼티**
+    public int PlayerID => controller?.playerID ?? -1;
+
+    private void RegisterTerritoryExpansion(int gainedTiles)
+    {
+        totalTerritoryGainedThisEpisode += gainedTiles;
+
+        // 빠른 연속 영역 확보 감지 (30초 이내)
+        if (Time.time - lastTerritoryTime < 30f)
+        {
+            consecutiveTerritoryGains++;
+
+            // 연속 확장 보너스
+            float consecutiveBonus = consecutiveTerritoryGains * 2.0f;
+            AddReward(consecutiveBonus);
+            Debug.Log($"[MyAgent] 🔥 CONSECUTIVE EXPANSION! Player {controller?.playerID}: " +
+                     $"연속 {consecutiveTerritoryGains}회 → 추가 보상 {consecutiveBonus:F2}점!");
+        }
+        else
+        {
+            consecutiveTerritoryGains = 1; // 첫 번째 확장으로 초기화
+        }
+
+        lastTerritoryTime = Time.time;
+
+        // 에피소드 총 영역 확보 성과 보상
+        if (totalTerritoryGainedThisEpisode >= 100)
+        {
+            AddReward(15.0f); // 에피소드 내 100 타일 이상 확보 시 특별 보상
+            Debug.Log($"[MyAgent] 👑 EPISODE MASTER! Player {controller?.playerID}: " +
+                     $"총 {totalTerritoryGainedThisEpisode} 타일 확보!");
         }
     }
 
@@ -1000,10 +1072,22 @@ public class MyAgent : Agent
             // 안전한 상황 - 일반적인 게임 플레이 보상
             if (mapManager.InBounds(nextPos))
             {
-                int nextTile = mapManager.GetTile(nextPos);
-                if (nextTile == 0) // 중립 지역
+                int nextTile = mapManager.GetTile(nextPos); if (nextTile == 0) // 중립 지역
                 {
                     AddReward(0.15f); // 새로운 땅 탐험 보상
+
+                    // ✅ 효율적인 영역 확장 패턴 추가 보상
+                    if (IsEfficientExpansionPattern(newDirection, currentPos))
+                    {
+                        AddReward(0.1f); // 직사각형 확장 보너스
+                    }
+
+                    // ✅ 종합적인 확장 효율성 보상
+                    float efficiency = CalculateExpansionEfficiency(currentPos, newDirection);
+                    if (efficiency > 0.5f)
+                    {
+                        AddReward(efficiency * 0.2f); // 최대 0.2f 추가 보상
+                    }
                 }
                 else if (nextTile == myPlayerID) // 내 영역으로 복귀
                 {
@@ -1017,18 +1101,18 @@ public class MyAgent : Agent
         {
             float survivalBonus = 0.1f * (1f - currentThreatLevel);
             AddReward(survivalBonus);
-        }
-
-        // 5. 직선 이동 페널티 (위험 상황에서는 완화)
+        }        // 5. ✅ 효율적인 직선 이동 권장 (직사각형 영역 확장)
         if (IsStraightLineMovement() && currentThreatLevel < 0.5f)
         {
-            AddReward(-0.2f);
-        }
-
-        // 6. 반복 패턴 페널티 (위험 상황에서는 완화)
+            // 중립 지역에서의 직선 이동은 효율적인 영역 확장이므로 보상
+            if (mapManager.InBounds(nextPos) && mapManager.GetTile(nextPos) == 0)
+            {
+                AddReward(0.1f); // 효율적인 영역 확장 보상
+            }
+        }        // 6. 비효율적인 반복 패턴 페널티 (위험 상황에서는 완화)
         if (IsRepeatingPattern(newDirection) && currentThreatLevel < 0.5f)
         {
-            AddReward(-0.25f);
+            AddReward(-0.1f); // 페널티 완화: -0.25f -> -0.1f
         }
     }
 
@@ -1105,31 +1189,41 @@ public class MyAgent : Agent
         // 3. 영역 확보 보상들
         if (mapManager.InBounds(nextPos))
         {
-            int nextTile = mapManager.GetTile(nextPos);
-            if (nextTile == 0) // 중립 지역
+            int nextTile = mapManager.GetTile(nextPos); if (nextTile == 0) // 중립 지역
             {
                 AddReward(0.15f); // 새로운 땅 탐험 보상
+
+                // ✅ 효율적인 영역 확장 패턴 추가 보상 (백업 시스템)
+                if (IsEfficientExpansionPattern(newDirection, currentPos))
+                {
+                    AddReward(0.1f); // 직사각형 확장 보너스
+                }
+
+                // ✅ 종합적인 확장 효율성 보상 (백업 시스템)
+                float efficiency = CalculateExpansionEfficiency(currentPos, newDirection);
+                if (efficiency > 0.5f)
+                {
+                    AddReward(efficiency * 0.2f); // 최대 0.2f 추가 보상
+                }
             }
             else if (nextTile == myPlayerID) // 내 영역으로 복귀
             {
                 AddReward(0.05f); // 안전한 복귀 보상
             }
-        }
-
-        // 4. 직선 이동 페널티
+        }        // 4. ✅ 효율적인 직선 이동 권장 (백업 시스템)
         if (IsStraightLineMovement())
         {
-            AddReward(-0.2f);
-        }
-
-        // 5. 반복 패턴 페널티
+            // 중립 지역에서의 직선 이동은 효율적인 영역 확장이므로 보상
+            if (mapManager.InBounds(nextPos) && mapManager.GetTile(nextPos) == 0)
+            {
+                AddReward(0.1f); // 효율적인 영역 확장 보상
+            }
+        }        // 5. 비효율적인 반복 패턴 페널티 (백업 시스템)
         if (IsRepeatingPattern(newDirection))
         {
-            AddReward(-0.25f);
+            AddReward(-0.1f); // 페널티 완화: -0.25f -> -0.1f
         }
-    }
-
-    // **개선된 직선 이동 패턴 감지**
+    }    // **효율적인 직선 이동 감지 - 직사각형 영역 확장에 유리**
     private bool IsStraightLineMovement()
     {
         if (directionHistory.Count < 4) return false;
@@ -1137,24 +1231,25 @@ public class MyAgent : Agent
         Vector2Int[] directions = directionHistory.ToArray();
         Vector2Int firstDirection = directions[0];
 
-        for (int i = 1; i < 4; i++)
+        // 모든 방향이 같으면 직선 이동
+        for (int i = 1; i < directions.Length; i++)
         {
             if (directions[i] != firstDirection)
                 return false;
         }
 
         return true;
-    }
-
-    // **개선된 반복 패턴 감지**
+    }// **개선된 반복 패턴 감지 - 비효율적인 루프만 감지**
     private bool IsRepeatingPattern(Vector2Int direction)
     {
-        if (directionHistory.Count < 6) return false;
+        if (directionHistory.Count < 4) return false; // 히스토리 크기 감소에 맞춤
 
         var tempHistory = new List<Vector2Int>(directionHistory);
         tempHistory.Add(direction);
 
-        return CheckRepeatingPattern(tempHistory, 2) || CheckRepeatingPattern(tempHistory, 3);
+        // 2단계 반복만 체크 (UDUD, LRLR 같은 비효율적 패턴)
+        // 직사각형 확장에 필요한 긴 직선 이동은 허용
+        return CheckRepeatingPattern(tempHistory, 2);
     }
 
     private bool CheckRepeatingPattern(List<Vector2Int> history, int patternLength)
@@ -1183,5 +1278,114 @@ public class MyAgent : Agent
         positionHistory.Enqueue(position);
         if (positionHistory.Count > HISTORY_SIZE)
             positionHistory.Dequeue();
+    }
+
+    // **✅ 효율적인 영역 확장 패턴 감지**
+    private bool IsEfficientExpansionPattern(Vector2Int newDirection, Vector2Int currentPos)
+    {
+        // 1. 직선 이동 중인가? (효율적)
+        if (IsStraightLineMovement())
+        {
+            return true; // 직선 이동은 항상 효율적
+        }
+
+        // 2. 직각 회전인가? (직사각형 확장에 필요)
+        if (directionHistory.Count > 0)
+        {
+            Vector2Int lastDirection = directionHistory.Last();
+            // 90도 회전 확인 (내적이 0이면 수직)
+            int dotProduct = lastDirection.x * newDirection.x + lastDirection.y * newDirection.y;
+            if (dotProduct == 0) // 90도 회전
+            {
+                return true; // 직사각형 모서리 전환
+            }
+        }
+
+        // 3. 내 영역으로부터 바깥쪽으로 확장하는가?
+        bool isExpandingOutward = IsExpandingFromMyTerritory(currentPos, newDirection);
+        if (isExpandingOutward)
+        {
+            return true; // 바깥쪽 확장은 효율적
+        }
+
+        return false;
+    }
+
+    // **내 영역으로부터 바깥쪽 확장 감지**
+    private bool IsExpandingFromMyTerritory(Vector2Int currentPos, Vector2Int direction)
+    {
+        int myPlayerID = controller.playerID;
+
+        // 현재 위치 주변에 내 영역이 있는지 확인
+        Vector2Int[] checkDirections = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
+
+        foreach (var checkDir in checkDirections)
+        {
+            Vector2Int checkPos = currentPos + checkDir;
+            if (mapManager.InBounds(checkPos) && mapManager.GetTile(checkPos) == myPlayerID)
+            {
+                // 내 영역이 인접해 있고, 이동 방향이 그 반대라면 확장
+                Vector2Int oppositeDir = -checkDir;
+                if (direction == oppositeDir)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    // **✅ 영역 확보 효율성 평가**
+    private float CalculateExpansionEfficiency(Vector2Int currentPos, Vector2Int newDirection)
+    {
+        int myPlayerID = controller.playerID;
+        Vector2Int nextPos = currentPos + newDirection;
+
+        if (!mapManager.InBounds(nextPos)) return 0f;
+
+        float efficiency = 0f;
+
+        // 1. 중립 지역으로의 이동 (기본 효율성)
+        if (mapManager.GetTile(nextPos) == 0)
+        {
+            efficiency += 0.5f;
+        }
+
+        // 2. 내 영역과 연결된 확장인가? (더 안전하고 효율적)
+        Vector2Int[] adjacentDirs = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
+        int myTerritoryAdjacent = 0;
+
+        foreach (var dir in adjacentDirs)
+        {
+            Vector2Int adjPos = nextPos + dir;
+            if (mapManager.InBounds(adjPos) && mapManager.GetTile(adjPos) == myPlayerID)
+            {
+                myTerritoryAdjacent++;
+            }
+        }
+
+        // 내 영역과 많이 연결될수록 더 효율적 (안전하고 통합된 확장)
+        efficiency += myTerritoryAdjacent * 0.1f;
+
+        // 3. 직선 확장 보너스 (직사각형 형태)
+        if (IsStraightLineMovement())
+        {
+            efficiency += 0.2f;
+        }
+
+        // 4. 경계에 너무 가까우면 효율성 감소
+        float distanceFromBorder = Mathf.Min(
+            nextPos.x, nextPos.y,
+            mapManager.width - nextPos.x - 1,
+            mapManager.height - nextPos.y - 1
+        );
+
+        if (distanceFromBorder < 3)
+        {
+            efficiency -= (3 - distanceFromBorder) * 0.1f;
+        }
+
+        return Mathf.Clamp01(efficiency);
     }
 }
