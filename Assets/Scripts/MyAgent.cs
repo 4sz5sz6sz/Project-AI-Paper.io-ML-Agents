@@ -913,7 +913,7 @@ public class MyAgent : Agent
                 return;
             }
 
-            if (currentScore >= 500) // 승리
+            if (currentScore >= 1000) // 승리
             {
                 SetReward(50.0f);
                 EndEpisode();
