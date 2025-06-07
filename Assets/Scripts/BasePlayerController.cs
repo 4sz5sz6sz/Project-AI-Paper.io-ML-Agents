@@ -155,6 +155,14 @@ public abstract class BasePlayerController : MonoBehaviour
                     {
                         // 다른 플레이어의 궤적을 밟으면 해당 플레이어가 죽음
                         Debug.Log($"플레이어 {cornerTracker.playerId}: 플레이어 {existingTrail}의 궤적을 끊음!");
+
+                        // **🚨 NEW: AIPlayerController인 경우 킬 알림 전송**
+                        var aiController = GetComponent<AIPlayerController>();
+                        if (aiController != null)
+                        {
+                            aiController.NotifyEnemyKill(existingTrail);
+                        }
+
                         if (GameController.Instance != null)
                         {
                             GameController.Instance.KillPlayer(existingTrail);

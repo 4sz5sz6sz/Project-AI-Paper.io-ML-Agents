@@ -28,6 +28,11 @@ public class MyAgent : Agent
     private float previousScore = 0f;
     private Vector2Int previousPosition = Vector2Int.zero;
 
+    // **🚨 NEW: 영역 확보 추적 및 효율성 보상 변수들**
+    private int consecutiveTerritoryGains = 0;
+    private float lastTerritoryTime = 0f;
+    private int totalTerritoryGainedThisEpisode = 0;
+
     void Start()
     {
         if (mapManager == null)
@@ -659,27 +664,28 @@ public class MyAgent : Agent
             }
         }
         return positions;
-    }
-    // 적이 내 궤적을 끊을 수 있는 최단 시간 계산 (시야 제한 고려)
+    }    // 적이 내 궤적을 끊을 수 있는 최단 시간 계산 (순수 맨하탄 거리만 사용)
     private float CalculateMinInterceptTime(Vector2Int enemyPos, List<Vector2Int> myTrailPositions, bool isInVision)
     {
+        if (myTrailPositions.Count == 0) return 999f;
+
         float minTime = 999f;
+
         foreach (var trailPos in myTrailPositions)
         {
-            float distance = Vector2.Distance(enemyPos, trailPos);
+            // 🎯 순수 맨하탄 거리만 사용 - 적의 이동 제약은 고려하지 않음
+            float manhattanDistance = Mathf.Abs(enemyPos.x - trailPos.x) + Mathf.Abs(enemyPos.y - trailPos.y);
 
             // 시야 밖의 적은 거리에 불확실성 추가
             if (!isInVision)
             {
-                distance = Mathf.Min(distance, 12.5f); // 최대 거리 제한
+                manhattanDistance = Mathf.Min(manhattanDistance, 12.5f); // 최대 거리 제한
             }
 
-            minTime = Mathf.Min(minTime, distance); // 1칸당 1턴 가정
+            minTime = Mathf.Min(minTime, manhattanDistance);
         }
         return minTime;
-    }
-
-    // 위협 수준 계산 (0~1, 1이 최고 위험)
+    }    // 위협 수준 계산 (0~1, 1이 최고 위험)
     private float CalculateThreatLevel(int myDistanceToSafety, float enemyInterceptTime, float enemyDistance)
     {
         // 적이 내 궤적을 끊기 전에 내가 안전지대에 도달 가능한가?
@@ -749,6 +755,17 @@ public class MyAgent : Agent
             SetReward(-10.0f); // 사망 페널티
             Debug.Log($"MyAgent({controller?.playerID}): 사망 감지됨. 즉시 재시작.");
 
+            // EpisodeManager에 사망 알림 (GameObject 기반 안전한 참조)
+            GameObject episodeManagerObj = GameObject.Find("EpisodeManager");
+            if (episodeManagerObj != null)
+            {
+                var episodeManager = episodeManagerObj.GetComponent<MonoBehaviour>();
+                if (episodeManager != null)
+                {
+                    episodeManager.SendMessage("OnAgentDeath", this, SendMessageOptions.DontRequireReceiver);
+                }
+            }
+
             // 약간의 지연을 두고 에피소드 종료 (상태 안정화)
             Invoke(nameof(DelayedEndEpisode), 0.1f);
         }
@@ -757,635 +774,178 @@ public class MyAgent : Agent
     // **🚨 NEW: 영역 완성 감지 및 보상 시스템**
     public void NotifyTerritoryCompletion(int gainedTiles)
     {
-        if (gainedTiles > 0)
+        if (gainedTiles <= 0) return;
+
+        float baseReward = gainedTiles * 1.5f; // 기본 보상: 타일 수 × 1.5
+        float totalReward = baseReward;
+
+        // 대규모 영역 획득 보너스
+        if (gainedTiles >= 50)
         {
-            // 📈 획득한 타일 수에 비례하는 압도적인 보상 시스템
-            float territoryReward = gainedTiles * 1.5f; // 기본 생존 보상(0.01f) 대비 150배 강력
-
-            // 🎯 대규모 영역 확보 시 추가 보너스
-            if (gainedTiles >= 50)
-            {
-                territoryReward += 25.0f; // 대규모 확장 보너스
-                Debug.Log($"[MyAgent] 🏆 MASSIVE TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 대규모 보너스!");
-            }
-            else if (gainedTiles >= 20)
-            {
-                territoryReward += 10.0f; // 중규모 확장 보너스
-                Debug.Log($"[MyAgent] 🎖️ LARGE TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 중규모 보너스!");
-            }
-            else if (gainedTiles >= 10)
-            {
-                territoryReward += 5.0f; // 소규모 확장 보너스
-                Debug.Log($"[MyAgent] 🥇 GOOD TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 소규모 보너스!");
-            }
-
-            AddReward(territoryReward);
-            Debug.Log($"[MyAgent] 💰 TERRITORY REWARD! Player {controller?.playerID}: " +
-                     $"획득 타일 {gainedTiles}개 → 보상 {territoryReward:F2}점!");
-
-            // 🎯 연속 영역 확보 감지 및 추가 보상
-            RegisterTerritoryExpansion(gainedTiles);
+            totalReward += 25.0f; // 매우 큰 영역
+            Debug.Log($"[MyAgent] 🎉 거대 영역 보너스! {gainedTiles} 타일 → +25.0f 추가");
         }
-    }    // **🚨 NEW: 연속 영역 확보 추적 및 효율성 보상**
-    private int consecutiveTerritoryGains = 0;
-    private float lastTerritoryTime = 0f;
-    private int totalTerritoryGainedThisEpisode = 0;
+        else if (gainedTiles >= 20)
+        {
+            totalReward += 10.0f; // 큰 영역
+            Debug.Log($"[MyAgent] 🎉 대형 영역 보너스! {gainedTiles} 타일 → +10.0f 추가");
+        }
+        else if (gainedTiles >= 10)
+        {
+            totalReward += 5.0f; // 중간 영역
+            Debug.Log($"[MyAgent] 🎉 중형 영역 보너스! {gainedTiles} 타일 → +5.0f 추가");
+        }
 
-    // **🚨 NEW: 플레이어 ID 확인용 public 프로퍼티**
-    public int PlayerID => controller?.playerID ?? -1;
-
-    private void RegisterTerritoryExpansion(int gainedTiles)
-    {
+        AddReward(totalReward);
         totalTerritoryGainedThisEpisode += gainedTiles;
 
-        // 빠른 연속 영역 확보 감지 (30초 이내)
-        if (Time.time - lastTerritoryTime < 30f)
+        // 연속 영역 확보 추적
+        RegisterTerritoryExpansion(gainedTiles);
+
+        Debug.Log($"[MyAgent] 🏆 영역 완성 보상: {gainedTiles} 타일 → 총 +{totalReward:F1}f 보상");
+    }    // **🚨 NEW: 적 플레이어를 궤적 끊기로 킬했을 때 보상 시스템**
+    public void NotifyEnemyKilled(int killedPlayerId)
+    {
+        float killReward = 100.0f; // 기본 킬 보상 (100칸에 상응)
+
+        // 위험한 상황에서의 킬일수록 더 높은 보상
+        Vector2Int currentPos = new Vector2Int(
+            Mathf.RoundToInt(transform.position.x),
+            Mathf.RoundToInt(transform.position.y)
+        );
+
+        // 현재 위협 수준 계산 (간단한 버전)
+        float threatLevel = 0f;
+        bool isInMyTerritory = mapManager.InBounds(currentPos) && mapManager.GetTile(currentPos) == controller.playerID;
+
+        if (!isInMyTerritory)
+        {
+            // 내 영역 밖에 있으면 기본적으로 위험
+            threatLevel = 0.5f;
+
+            // 내 궤적이 있으면 매우 위험
+            List<Vector2Int> myTrailPositions = GetMyTrailPositions(controller.playerID);
+            if (myTrailPositions.Count > 5)
+            {
+                threatLevel = 0.8f; // 긴 궤적 = 높은 위험
+            }
+        }
+
+        if (threatLevel > 0.7f)
+        {
+            killReward += 50.0f; // 위험한 상황에서의 킬은 추가 보상
+            Debug.Log($"[MyAgent] 🔥 고위험 킬 보너스! 위협도: {threatLevel:F2} → +50.0f 추가");
+        }
+        else if (threatLevel > 0.5f)
+        {
+            killReward += 25.0f; // 중간 위험 상황
+            Debug.Log($"[MyAgent] ⚡ 중위험 킬 보너스! 위협도: {threatLevel:F2} → +25.0f 추가");
+        }
+
+        // 내 영역 밖에서의 킬은 더 높은 보상 (공격적 플레이 장려)
+        if (!isInMyTerritory)
+        {
+            killReward += 30.0f; // 영역 밖 킬 보너스
+            Debug.Log($"[MyAgent] 🗡️ 공격적 킬 보너스! 내 영역 밖에서 킬 → +30.0f 추가");
+        }
+
+        AddReward(killReward);
+        Debug.Log($"[MyAgent] 💀 적 Player {killedPlayerId} 킬! 총 +{killReward:F1}f 보상");
+    }
+
+    // **🚨 NEW: 연속 영역 확보 추적 및 효율성 보상**
+    private void RegisterTerritoryExpansion(int gainedTiles)
+    {
+        float currentTime = Time.time;
+
+        // 30초 내 연속 확장인지 확인
+        if (currentTime - lastTerritoryTime < 30f)
         {
             consecutiveTerritoryGains++;
-
-            // 연속 확장 보너스
-            float consecutiveBonus = consecutiveTerritoryGains * 2.0f;
+            float consecutiveBonus = consecutiveTerritoryGains * 2.0f; // 연속 확장 보너스
             AddReward(consecutiveBonus);
-            Debug.Log($"[MyAgent] 🔥 CONSECUTIVE EXPANSION! Player {controller?.playerID}: " +
-                     $"연속 {consecutiveTerritoryGains}회 → 추가 보상 {consecutiveBonus:F2}점!");
+            Debug.Log($"[MyAgent] 🔄 연속 영역 확보 보너스 #{consecutiveTerritoryGains}: +{consecutiveBonus:F1}f");
         }
         else
         {
-            consecutiveTerritoryGains = 1; // 첫 번째 확장으로 초기화
+            consecutiveTerritoryGains = 1; // 새로운 연속 시작
         }
 
-        lastTerritoryTime = Time.time;
-
-        // 에피소드 총 영역 확보 성과 보상
-        if (totalTerritoryGainedThisEpisode >= 100)
+        lastTerritoryTime = currentTime;
+    }    // **🚨 NEW: 플레이어 ID 확인용 public 프로퍼티**
+    public int PlayerID => controller?.playerID ?? -1;    // **핵심: ML-Agents 행동 처리 및 EpisodeManager 스텝 카운팅**
+    public override void OnActionReceived(ActionBuffers actions)
+    {
+        if (isDead || controller == null) return;        // EpisodeManager에 개별 Agent 스텝 알림 (새로운 개별 추적 시스템)
+        GameObject episodeManagerObj = GameObject.Find("EpisodeManager");
+        if (episodeManagerObj != null)
         {
-            AddReward(15.0f); // 에피소드 내 100 타일 이상 확보 시 특별 보상
-            Debug.Log($"[MyAgent] 👑 EPISODE MASTER! Player {controller?.playerID}: " +
-                     $"총 {totalTerritoryGainedThisEpisode} 타일 확보!");
+            var episodeManager = episodeManagerObj.GetComponent<MonoBehaviour>();
+            if (episodeManager != null)
+            {
+                // PlayerID와 함께 스텝 알림 - 개별 Agent 추적
+                episodeManager.SendMessage("OnAgentStep", controller.playerID, SendMessageOptions.DontRequireReceiver);
+            }
+        }
+
+        int actionIndex = actions.DiscreteActions[0];
+
+        if (actionIndex >= 0 && actionIndex < possibleActions.Length)
+        {
+            Vector2Int chosenDirection = possibleActions[actionIndex];
+
+            // 현재 방향과 반대 방향으로는 이동 불가 (자기 몸통 충돌 방지)
+            if (chosenDirection != -controller.direction)
+            {
+                controller.SetDirection(chosenDirection);
+
+                // 이동 히스토리 업데이트
+                directionHistory.Enqueue(chosenDirection);
+                if (directionHistory.Count > HISTORY_SIZE)
+                    directionHistory.Dequeue();
+
+                // 위치 히스토리 업데이트
+                Vector2Int currentPos = new Vector2Int(
+                    Mathf.RoundToInt(transform.position.x),
+                    Mathf.RoundToInt(transform.position.y)
+                );
+                positionHistory.Enqueue(currentPos);
+                if (positionHistory.Count > HISTORY_SIZE)
+                    positionHistory.Dequeue();
+            }
+        }
+
+        // 진행 상황 모니터링
+        Vector2Int newPosition = new Vector2Int(
+            Mathf.RoundToInt(transform.position.x),
+            Mathf.RoundToInt(transform.position.y)
+        );
+
+        float currentScore = gameManager?.GetScore(controller.playerID) ?? 0f;
+
+        // 진전이 있었는지 확인 (점수 증가 또는 위치 변화)
+        if (currentScore > previousScore || newPosition != previousPosition)
+        {
+            stepsWithoutProgress = 0;
+            previousScore = currentScore;
+            previousPosition = newPosition;
+        }
+        else
+        {
+            stepsWithoutProgress++;
+
+            // 너무 오랫동안 진전이 없으면 에피소드 종료
+            if (stepsWithoutProgress >= MAX_STEPS_WITHOUT_PROGRESS)
+            {
+                Debug.Log($"[MyAgent] Player {controller.playerID}: {MAX_STEPS_WITHOUT_PROGRESS} 스텝 동안 진전 없음. 에피소드 종료.");
+                SetReward(-5.0f); // 정체 페널티
+                EndEpisode();
+            }
         }
     }
 
     private void DelayedEndEpisode()
     {
         EndEpisode();
-    }
-
-    public override void OnActionReceived(ActionBuffers actions)
-    {
-        int action = actions.DiscreteActions[0];
-
-        if (controller != null && action >= 0 && action < possibleActions.Length)
-        {
-            Vector2Int newDirection = possibleActions[action];
-            Vector2Int currentPos = new Vector2Int(
-                Mathf.RoundToInt(transform.localPosition.x),
-                Mathf.RoundToInt(transform.localPosition.y)
-            );
-
-            // **핵심 수정: 경계 체크를 먼저 수행**
-            Vector2Int nextPos = currentPos + newDirection;
-            // **경계 밖으로 나가려는 시도를 강력히 차단**
-            if (!mapManager.InBounds(nextPos))
-            {
-                Debug.LogWarning($"[MyAgent] 경계 밖 이동 시도 차단! 현재: {currentPos}, 다음: {nextPos}");
-                AddReward(-5.0f); // 경계 이동 시도에 매우 큰 페널티
-
-                // 안전한 방향으로 강제 변경
-                Vector2Int safeDirection = FindSafeDirection(currentPos);
-                if (safeDirection != Vector2Int.zero)
-                {
-                    newDirection = safeDirection;
-                    Debug.Log($"[MyAgent] 안전한 방향으로 변경: {safeDirection}");
-                }
-                else
-                {
-                    // 모든 방향이 위험하면 현재 방향 유지
-                    newDirection = controller.direction;
-                    Debug.LogWarning("[MyAgent] 모든 방향이 위험! 현재 방향 유지");
-                }
-            }
-
-            // **자기 궤적 충돌 방지 (즉시 사망 방지)**
-            nextPos = currentPos + newDirection; // 방향이 변경되었을 수 있으므로 재계산
-            if (mapManager.InBounds(nextPos))
-            {
-                int nextTrail = mapManager.GetTrail(nextPos);
-                if (nextTrail == controller.playerID)
-                {
-                    Debug.LogWarning($"[MyAgent] 자기 궤적 충돌 시도 차단! 현재: {currentPos}, 다음: {nextPos}");
-                    AddReward(-10.0f); // 자기 궤적 충돌 시도에 매우 큰 페널티
-
-                    // 안전한 방향으로 강제 변경
-                    Vector2Int safeDirection = FindSafeDirection(currentPos);
-                    if (safeDirection != Vector2Int.zero)
-                    {
-                        newDirection = safeDirection;
-                        Debug.Log($"[MyAgent] 궤적 충돌 방지를 위해 안전한 방향으로 변경: {safeDirection}");
-                    }
-                    else
-                    {
-                        // 모든 방향이 위험하면 에피소드 종료
-                        Debug.LogError("[MyAgent] 모든 방향이 위험! 에피소드 종료");
-                        AddReward(-20.0f);
-                        NotifyDeath();
-                        return;
-                    }
-                }
-            }            // **🚨 위협 평가 기반 향상된 보상 시스템**
-            CalculateSmartRewardsWithThreatAssessment(newDirection, currentPos);
-
-            controller.SetDirection(newDirection);
-        }
-        else
-        {
-            AddReward(-0.1f); // 잘못된 행동에 페널티
-        }
-
-        // 게임 종료 체크
-        if (gameManager != null && controller != null && !isDead)
-        {
-            float currentScore = gameManager.GetScore(controller.playerID);
-
-            if (currentScore < 0)
-            {
-                Debug.Log($"MyAgent({controller.playerID}): 점수 기반 사망 감지 (score: {currentScore})");
-                NotifyDeath();
-                return;
-            }
-
-            if (currentScore >= 1000) // 승리
-            {
-                SetReward(50.0f);
-                EndEpisode();
-                return;
-            }
-        }
-    }
-
-    // **개선된 함수: 안전한 방향 찾기**
-    private Vector2Int FindSafeDirection(Vector2Int currentPos)
-    {
-        Vector2Int[] directions = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
-
-        // 우선순위: 내 영역으로의 이동을 선호
-        Vector2Int bestDirection = Vector2Int.zero;
-        int bestScore = -999;
-
-        foreach (var dir in directions)
-        {
-            Vector2Int testPos = currentPos + dir;
-
-            // 경계 체크
-            if (!mapManager.InBounds(testPos)) continue;
-
-            // 자기 궤적 체크 (절대 피해야 함)
-            if (mapManager.GetTrail(testPos) == controller.playerID) continue;
-
-            // 안전도 점수 계산
-            int score = 0;
-            int tileOwner = mapManager.GetTile(testPos);
-
-            if (tileOwner == controller.playerID)
-            {
-                score += 100; // 내 영역으로 이동 (가장 안전)
-            }
-            else if (tileOwner == 0)
-            {
-                score += 50; // 중립 지역 (보통 안전)
-            }
-            else
-            {
-                score += 10; // 상대방 영역 (덜 선호하지만 안전)
-            }
-
-            // 다른 궤적이 있으면 감점
-            if (mapManager.GetTrail(testPos) != 0)
-            {
-                score -= 30;
-            }
-
-            if (score > bestScore)
-            {
-                bestScore = score;
-                bestDirection = dir;
-            }
-        }
-
-        return bestDirection;
-    }
-
-    public override void Heuristic(in ActionBuffers actionsOut)
-    {
-        var discreteActionsOut = actionsOut.DiscreteActions;
-
-        int selectedAction = -1;
-
-        // IJKL 키로 에이전트 수동 제어
-        if (Input.GetKey(KeyCode.I) || Input.GetKeyDown(KeyCode.I)) selectedAction = 0; // 위
-        else if (Input.GetKey(KeyCode.L) || Input.GetKeyDown(KeyCode.L)) selectedAction = 1; // 오른쪽
-        else if (Input.GetKey(KeyCode.K) || Input.GetKeyDown(KeyCode.K)) selectedAction = 2; // 아래
-        else if (Input.GetKey(KeyCode.J) || Input.GetKeyDown(KeyCode.J)) selectedAction = 3; // 왼쪽
-
-        if (selectedAction >= 0)
-        {
-            discreteActionsOut[0] = selectedAction;
-        }
-        else
-        {
-            // 현재 방향 유지
-            Vector2Int currentDir = controller?.direction ?? Vector2Int.zero;
-            if (currentDir == Vector2Int.up) discreteActionsOut[0] = 0;
-            else if (currentDir == Vector2Int.right) discreteActionsOut[0] = 1;
-            else if (currentDir == Vector2Int.down) discreteActionsOut[0] = 2;
-            else if (currentDir == Vector2Int.left) discreteActionsOut[0] = 3;
-            else discreteActionsOut[0] = 1; // 기본값: 오른쪽
-        }
-    }
-
-    // **🚨 NEW: 적 위협 평가 기반 향상된 보상 시스템**
-    private void CalculateSmartRewardsWithThreatAssessment(Vector2Int newDirection, Vector2Int currentPos)
-    {
-        int myPlayerID = controller.playerID;
-        Vector2Int nextPos = currentPos + newDirection;
-
-        // **히스토리 업데이트**
-        UpdateHistory(newDirection, nextPos);
-
-        // 1. 기본 생존 보상
-        AddReward(0.01f);
-
-        // 2. 현재 위협 수준 평가
-        float currentThreatLevel = GetCurrentThreatLevel(currentPos, myPlayerID);
-
-        // 3. 안전지대까지의 거리
-        int distanceToSafety = CalculateDistanceToMyTerritory(currentPos, myPlayerID);
-        bool isInMyTerritory = mapManager.InBounds(currentPos) && mapManager.GetTile(currentPos) == myPlayerID;
-
-        // **🔥 핵심: 높은 위협 상황에서의 즉시 대피 보상 시스템**
-        if (currentThreatLevel > 0.7f && !isInMyTerritory)
-        {
-            // 매우 위험한 상황 - 즉시 안전지대로 대피해야 함
-            bool isMovingTowardsSafety = IsMovingTowardsSafety(currentPos, nextPos, myPlayerID);
-
-            if (isMovingTowardsSafety)
-            {
-                // ✅ 올바른 대피 행동에 대한 강력한 보상
-                AddReward(2.0f);
-                Debug.Log($"[MyAgent] 🚨 위협 회피: 안전지대 향해 올바른 대피! 위협도: {currentThreatLevel:F2}");
-            }
-            else
-            {
-                // ❌ 위험한 상황에서 잘못된 방향 이동에 대한 강력한 페널티
-                AddReward(-1.5f);
-                Debug.Log($"[MyAgent] ⚠️ 위협 무시: 위험한 상황에서 잘못된 이동! 위협도: {currentThreatLevel:F2}");
-            }
-
-            // 영역 확장 시도 시 추가 페널티
-            if (mapManager.InBounds(nextPos))
-            {
-                int nextTile = mapManager.GetTile(nextPos);
-                if (nextTile == 0) // 중립 지역으로 확장 시도
-                {
-                    AddReward(-1.5f); // 위험한 상황에서 확장 시도는 매우 위험
-                    Debug.Log("[MyAgent] ❌ 위험 상황에서 영역 확장 시도 - 강력한 페널티!");
-                }
-            }
-        }
-        else if (currentThreatLevel > 0.3f && !isInMyTerritory)
-        {
-            // 중간 위험 상황 - 조심스러운 이동 권장
-            bool isMovingTowardsSafety = IsMovingTowardsSafety(currentPos, nextPos, myPlayerID);
-
-            if (isMovingTowardsSafety)
-            {
-                AddReward(0.5f); // 적당한 보상
-            }
-            else if (distanceToSafety <= 3)
-            {
-                // 안전지대가 가까우면 안전한 방향 이동 보상
-                AddReward(1.5f);
-                Debug.Log("[MyAgent] 🛡️ 안전지대 근처에서 올바른 방향 이동!");
-            }
-        }
-        else
-        {
-            // 안전한 상황 - 일반적인 게임 플레이 보상
-            if (mapManager.InBounds(nextPos))
-            {
-                int nextTile = mapManager.GetTile(nextPos); if (nextTile == 0) // 중립 지역
-                {
-                    AddReward(0.15f); // 새로운 땅 탐험 보상
-
-                    // ✅ 효율적인 영역 확장 패턴 추가 보상
-                    if (IsEfficientExpansionPattern(newDirection, currentPos))
-                    {
-                        AddReward(0.1f); // 직사각형 확장 보너스
-                    }
-
-                    // ✅ 종합적인 확장 효율성 보상
-                    float efficiency = CalculateExpansionEfficiency(currentPos, newDirection);
-                    if (efficiency > 0.5f)
-                    {
-                        AddReward(efficiency * 0.2f); // 최대 0.2f 추가 보상
-                    }
-                }
-                else if (nextTile == myPlayerID) // 내 영역으로 복귀
-                {
-                    AddReward(0.05f); // 안전한 복귀 보상
-                }
-            }
-        }
-
-        // 4. 생존 기본 보상 (위험도에 반비례)
-        if (!isInMyTerritory)
-        {
-            float survivalBonus = 0.1f * (1f - currentThreatLevel);
-            AddReward(survivalBonus);
-        }        // 5. ✅ 효율적인 직선 이동 권장 (직사각형 영역 확장)
-        if (IsStraightLineMovement() && currentThreatLevel < 0.5f)
-        {
-            // 중립 지역에서의 직선 이동은 효율적인 영역 확장이므로 보상
-            if (mapManager.InBounds(nextPos) && mapManager.GetTile(nextPos) == 0)
-            {
-                AddReward(0.1f); // 효율적인 영역 확장 보상
-            }
-        }        // 6. 비효율적인 반복 패턴 페널티 (위험 상황에서는 완화)
-        if (IsRepeatingPattern(newDirection) && currentThreatLevel < 0.5f)
-        {
-            AddReward(-0.1f); // 페널티 완화: -0.25f -> -0.1f
-        }
-    }
-
-    // 현재 위치에서의 위협 수준 계산
-    private float GetCurrentThreatLevel(Vector2Int currentPos, int myPlayerID)
-    {
-        BasePlayerController[] allPlayers = UnityEngine.Object.FindObjectsByType<BasePlayerController>(FindObjectsSortMode.None);
-
-        bool isInMyTerritory = mapManager.InBounds(currentPos) && mapManager.GetTile(currentPos) == myPlayerID;
-        if (isInMyTerritory) return 0f; // 안전지대에서는 위협 없음
-
-        int myDistanceToSafety = CalculateDistanceToMyTerritory(currentPos, myPlayerID);
-        List<Vector2Int> myTrailPositions = GetMyTrailPositions(myPlayerID);
-
-        float maxThreatLevel = 0f;
-        const int VISION_RANGE = 12;
-
-        foreach (var enemy in allPlayers)
-        {
-            if (enemy == null || enemy.gameObject == gameObject) continue;
-
-            var enemyTracker = enemy.GetComponent<CornerPointTracker>();
-            if (enemyTracker == null || enemyTracker.playerId == myPlayerID) continue;
-
-            Vector2Int enemyPos = new Vector2Int(
-                Mathf.RoundToInt(enemy.transform.position.x),
-                Mathf.RoundToInt(enemy.transform.position.y)
-            );
-
-            float distanceToEnemy = Vector2.Distance(currentPos, enemyPos);
-            bool isInVision = Mathf.Abs(enemyPos.x - currentPos.x) <= VISION_RANGE &&
-                             Mathf.Abs(enemyPos.y - currentPos.y) <= VISION_RANGE;
-
-            if (!isInVision)
-            {
-                distanceToEnemy = Mathf.Min(distanceToEnemy, 12.5f);
-            }
-
-            if (myTrailPositions.Count > 0)
-            {
-                float minInterceptTime = CalculateMinInterceptTime(enemyPos, myTrailPositions, isInVision);
-                float threatLevel = CalculateThreatLevel(myDistanceToSafety, minInterceptTime, distanceToEnemy);
-                maxThreatLevel = Mathf.Max(maxThreatLevel, threatLevel);
-            }
-        }
-
-        return maxThreatLevel;
-    }
-
-    // 안전지대를 향해 이동하고 있는지 확인
-    private bool IsMovingTowardsSafety(Vector2Int currentPos, Vector2Int nextPos, int myPlayerID)
-    {
-        int currentDistanceToSafety = CalculateDistanceToMyTerritory(currentPos, myPlayerID);
-        int nextDistanceToSafety = CalculateDistanceToMyTerritory(nextPos, myPlayerID);
-
-        // 안전지대에 더 가까워지면 true
-        return nextDistanceToSafety < currentDistanceToSafety;
-    }
-
-    // **기존 보상 시스템 (백업용)**
-    private void CalculateSmartRewards(Vector2Int newDirection, Vector2Int currentPos)
-    {
-        int myPlayerID = controller.playerID;
-        Vector2Int nextPos = currentPos + newDirection;
-
-        // **히스토리 업데이트**
-        UpdateHistory(newDirection, nextPos);
-
-        // 1. 기본 생존 보상
-        AddReward(0.01f);
-
-        // 2. 경계 체크와 자기 궤적 체크는 이미 OnActionReceived에서 처리됨
-
-        // 3. 영역 확보 보상들
-        if (mapManager.InBounds(nextPos))
-        {
-            int nextTile = mapManager.GetTile(nextPos); if (nextTile == 0) // 중립 지역
-            {
-                AddReward(0.15f); // 새로운 땅 탐험 보상
-
-                // ✅ 효율적인 영역 확장 패턴 추가 보상 (백업 시스템)
-                if (IsEfficientExpansionPattern(newDirection, currentPos))
-                {
-                    AddReward(0.1f); // 직사각형 확장 보너스
-                }
-
-                // ✅ 종합적인 확장 효율성 보상 (백업 시스템)
-                float efficiency = CalculateExpansionEfficiency(currentPos, newDirection);
-                if (efficiency > 0.5f)
-                {
-                    AddReward(efficiency * 0.2f); // 최대 0.2f 추가 보상
-                }
-            }
-            else if (nextTile == myPlayerID) // 내 영역으로 복귀
-            {
-                AddReward(0.05f); // 안전한 복귀 보상
-            }
-        }        // 4. ✅ 효율적인 직선 이동 권장 (백업 시스템)
-        if (IsStraightLineMovement())
-        {
-            // 중립 지역에서의 직선 이동은 효율적인 영역 확장이므로 보상
-            if (mapManager.InBounds(nextPos) && mapManager.GetTile(nextPos) == 0)
-            {
-                AddReward(0.1f); // 효율적인 영역 확장 보상
-            }
-        }        // 5. 비효율적인 반복 패턴 페널티 (백업 시스템)
-        if (IsRepeatingPattern(newDirection))
-        {
-            AddReward(-0.1f); // 페널티 완화: -0.25f -> -0.1f
-        }
-    }    // **효율적인 직선 이동 감지 - 직사각형 영역 확장에 유리**
-    private bool IsStraightLineMovement()
-    {
-        if (directionHistory.Count < 4) return false;
-
-        Vector2Int[] directions = directionHistory.ToArray();
-        Vector2Int firstDirection = directions[0];
-
-        // 모든 방향이 같으면 직선 이동
-        for (int i = 1; i < directions.Length; i++)
-        {
-            if (directions[i] != firstDirection)
-                return false;
-        }
-
-        return true;
-    }// **개선된 반복 패턴 감지 - 비효율적인 루프만 감지**
-    private bool IsRepeatingPattern(Vector2Int direction)
-    {
-        if (directionHistory.Count < 4) return false; // 히스토리 크기 감소에 맞춤
-
-        var tempHistory = new List<Vector2Int>(directionHistory);
-        tempHistory.Add(direction);
-
-        // 2단계 반복만 체크 (UDUD, LRLR 같은 비효율적 패턴)
-        // 직사각형 확장에 필요한 긴 직선 이동은 허용
-        return CheckRepeatingPattern(tempHistory, 2);
-    }
-
-    private bool CheckRepeatingPattern(List<Vector2Int> history, int patternLength)
-    {
-        if (history.Count < patternLength * 2) return false;
-
-        for (int i = 0; i < patternLength; i++)
-        {
-            int lastIndex = history.Count - 1 - i;
-            int prevIndex = lastIndex - patternLength;
-
-            if (prevIndex < 0 || history[lastIndex] != history[prevIndex])
-                return false;
-        }
-
-        return true;
-    }
-
-    // **히스토리 업데이트**
-    private void UpdateHistory(Vector2Int direction, Vector2Int position)
-    {
-        directionHistory.Enqueue(direction);
-        if (directionHistory.Count > HISTORY_SIZE)
-            directionHistory.Dequeue();
-
-        positionHistory.Enqueue(position);
-        if (positionHistory.Count > HISTORY_SIZE)
-            positionHistory.Dequeue();
-    }
-
-    // **✅ 효율적인 영역 확장 패턴 감지**
-    private bool IsEfficientExpansionPattern(Vector2Int newDirection, Vector2Int currentPos)
-    {
-        // 1. 직선 이동 중인가? (효율적)
-        if (IsStraightLineMovement())
-        {
-            return true; // 직선 이동은 항상 효율적
-        }
-
-        // 2. 직각 회전인가? (직사각형 확장에 필요)
-        if (directionHistory.Count > 0)
-        {
-            Vector2Int lastDirection = directionHistory.Last();
-            // 90도 회전 확인 (내적이 0이면 수직)
-            int dotProduct = lastDirection.x * newDirection.x + lastDirection.y * newDirection.y;
-            if (dotProduct == 0) // 90도 회전
-            {
-                return true; // 직사각형 모서리 전환
-            }
-        }
-
-        // 3. 내 영역으로부터 바깥쪽으로 확장하는가?
-        bool isExpandingOutward = IsExpandingFromMyTerritory(currentPos, newDirection);
-        if (isExpandingOutward)
-        {
-            return true; // 바깥쪽 확장은 효율적
-        }
-
-        return false;
-    }
-
-    // **내 영역으로부터 바깥쪽 확장 감지**
-    private bool IsExpandingFromMyTerritory(Vector2Int currentPos, Vector2Int direction)
-    {
-        int myPlayerID = controller.playerID;
-
-        // 현재 위치 주변에 내 영역이 있는지 확인
-        Vector2Int[] checkDirections = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
-
-        foreach (var checkDir in checkDirections)
-        {
-            Vector2Int checkPos = currentPos + checkDir;
-            if (mapManager.InBounds(checkPos) && mapManager.GetTile(checkPos) == myPlayerID)
-            {
-                // 내 영역이 인접해 있고, 이동 방향이 그 반대라면 확장
-                Vector2Int oppositeDir = -checkDir;
-                if (direction == oppositeDir)
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    // **✅ 영역 확보 효율성 평가**
-    private float CalculateExpansionEfficiency(Vector2Int currentPos, Vector2Int newDirection)
-    {
-        int myPlayerID = controller.playerID;
-        Vector2Int nextPos = currentPos + newDirection;
-
-        if (!mapManager.InBounds(nextPos)) return 0f;
-
-        float efficiency = 0f;
-
-        // 1. 중립 지역으로의 이동 (기본 효율성)
-        if (mapManager.GetTile(nextPos) == 0)
-        {
-            efficiency += 0.5f;
-        }
-
-        // 2. 내 영역과 연결된 확장인가? (더 안전하고 효율적)
-        Vector2Int[] adjacentDirs = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
-        int myTerritoryAdjacent = 0;
-
-        foreach (var dir in adjacentDirs)
-        {
-            Vector2Int adjPos = nextPos + dir;
-            if (mapManager.InBounds(adjPos) && mapManager.GetTile(adjPos) == myPlayerID)
-            {
-                myTerritoryAdjacent++;
-            }
-        }
-
-        // 내 영역과 많이 연결될수록 더 효율적 (안전하고 통합된 확장)
-        efficiency += myTerritoryAdjacent * 0.1f;
-
-        // 3. 직선 확장 보너스 (직사각형 형태)
-        if (IsStraightLineMovement())
-        {
-            efficiency += 0.2f;
-        }
-
-        // 4. 경계에 너무 가까우면 효율성 감소
-        float distanceFromBorder = Mathf.Min(
-            nextPos.x, nextPos.y,
-            mapManager.width - nextPos.x - 1,
-            mapManager.height - nextPos.y - 1
-        );
-
-        if (distanceFromBorder < 3)
-        {
-            efficiency -= (3 - distanceFromBorder) * 0.1f;
-        }
-
-        return Mathf.Clamp01(efficiency);
     }
 }
