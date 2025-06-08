@@ -87,7 +87,7 @@ public class MyAgent : Agent
                 spawnPos = new Vector2Int(45, 35);
                 break;
             case 4:
-                spawnPos = new Vector2Int(5, 35);
+                spawnPos = new Vector2Int(25, 25);
                 break;
             default:
                 spawnPos = new Vector2Int(25, 20); // 예외 처리용 중앙 스폰
