@@ -56,7 +56,6 @@ public class CornerPointTracker : MonoBehaviour
             // Debug.Log($"🧩 코너 추가: {gridPos}");
         }
     }
-
     public void FinalizePolygon()
     {
         if (cornerPoints == null || cornerPoints.Count < 2)
@@ -66,8 +65,21 @@ public class CornerPointTracker : MonoBehaviour
         }
 
         Debug.Log($"🎯 영역 점령 시작 (점 개수: {cornerPoints.Count})");
-        Debug.Log($"🌀 FinalizePolygon called by player {playerId}, point count: {cornerPoints.Count}");
-        mapManager.ApplyCornerArea(cornerPoints, playerId);
+        Debug.Log($"🌀 FinalizePolygon called by player {playerId}, point count: {cornerPoints.Count}");        // **🚨 NEW: 영역 완성 시 획득한 타일 수를 받아서 MyAgent에게 알림**
+        int gainedTiles = mapManager.ApplyCornerArea(cornerPoints, playerId);
+
+        // MyAgent 찾아서 알림 (해당 플레이어 ID의 MyAgent)
+        MyAgent[] allAgents = FindObjectsByType<MyAgent>(FindObjectsSortMode.None);
+        foreach (var agent in allAgents)
+        {
+            if (agent.PlayerID == playerId)
+            {
+                agent.NotifyTerritoryCompletion(gainedTiles);
+                Debug.Log($"[CornerPointTracker] 🎉 MyAgent Player {playerId}에게 영역 완성 알림: {gainedTiles} 타일 획득!");
+                break;
+            }
+        }
+
         Clear();
     }
 

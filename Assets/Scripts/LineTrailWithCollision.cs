@@ -96,19 +96,16 @@ public class LineTrailWithCollision : MonoBehaviour
 
         Vector3 direction = (currentPosition - lastPosition).normalized;
         if (direction != Vector3.zero)
-            lastDirection = direction;
-
-        float distance = Vector3.Distance(currentPosition, lastPosition);
+            lastDirection = direction; float distance = Vector3.Distance(currentPosition, lastPosition);
         if (distance >= minDistance)
         {
             lastPosition = currentPosition;
 
-            Vector3 newPoint = GetOffsetPoint(currentPosition, -lastDirection);
-            Vector2Int tilePos = new Vector2Int(Mathf.FloorToInt(newPoint.x), Mathf.FloorToInt(newPoint.y));
-            int owner = MapManager.Instance.GetTile(tilePos);
+            // ✅ 오프셋 위치 계산
+            Vector3 newPoint = GetOffsetPoint(currentPosition, lastDirection * -1f);
 
-            if (owner != cornerTracker.playerId)
-                AddPoint(newPoint);
+            // BasePlayerController에서 trailActive를 제어하므로 여기서는 단순히 점만 추가
+            AddPoint(newPoint);
         }
 
         if (points.Count >= 1 && !collisionActive)
@@ -138,28 +135,10 @@ public class LineTrailWithCollision : MonoBehaviour
         colliderPoints.Add(new Vector2(worldPoint.x, worldPoint.y));
         edgeCollider.points = colliderPoints.ToArray();
     }
-
-    public void ResetTrail()
-    {
-        points.Clear();
-        colliderPoints.Clear();
-        lineRenderer.positionCount = 0;
-        edgeCollider.points = new Vector2[0];
-        edgeCollider.enabled = false;
-        collisionActive = false;
-        lastPosition = playerTransform.position;
-
-        // 📌 다시 시작 시 첫 점 추가
-        Vector3 initialPoint = GetOffsetPoint(lastPosition, -lastDirection);
-        AddPoint(initialPoint);
-    }
-
     void OnTriggerEnter2D(Collider2D other)
     {
-        if (other.CompareTag("Player") && collisionActive)
-        {
-            Debug.Log($"{other.name} 라인에 닿았습니다!");
-            ResetTrail(); // 선택적으로 리셋
-        }
+        // MapManager 기반 trail 시스템으로 변경되어 
+        // OnTriggerEnter2D는 더 이상 사용하지 않습니다.
+        // 충돌 감지는 BasePlayerController에서 처리됩니다.
     }
 }

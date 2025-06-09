@@ -6,6 +6,7 @@ public class TileRenderer : MonoBehaviour
     public MapManager mapManager;      // 연결된 MapManager
     public GameObject tilePrefab;      // SpriteRenderer 포함 프리팹
     public Transform tileParent;       // 시각화 타일들을 담을 부모 오브젝트
+    public Sprite baseTileSprite;      // 기본 타일 이미지
 
     private GameObject[,] tileVisuals;
 
@@ -40,6 +41,14 @@ public class TileRenderer : MonoBehaviour
             {
                 var tile = Instantiate(tilePrefab, new Vector3(x, y, 0), Quaternion.identity, tileParent);
                 tile.name = $"Tile ({x},{y})";
+                
+                // 기본 스프라이트 설정
+                var spriteRenderer = tile.GetComponent<SpriteRenderer>();
+                if (baseTileSprite != null)
+                {
+                    spriteRenderer.sprite = baseTileSprite;
+                }
+                
                 tileVisuals[x, y] = tile;
             }
         }
@@ -99,7 +108,6 @@ public class TileRenderer : MonoBehaviour
             }
         }
     }
-
 
     public int GetPlayerTileCount(int playerId)
     {

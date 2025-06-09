@@ -24,32 +24,8 @@ public class PlayerController : BasePlayerController
     }
     void OnTriggerEnter2D(Collider2D other)
     {
-        float distance = Vector3.Distance(transform.position, other.transform.position);
-        if (distance > 1f) return; // 너무 멀리 떨어진 오브젝트는 무시
-
-        Debug.Log("✅ 트리거 작동함!");
-
-        // 충돌된 오브젝트 이름 출력
-        Debug.Log($"충돌된 오브젝트 이름: {other.gameObject.name}");
-
-        // 태그 검사
-        if (other.CompareTag("Player"))
-        {
-            Debug.Log("🎯 Player 태그를 가진 오브젝트와 충돌함!");
-        }
-
-        // LineTrailWithCollision 컴포넌트가 있는지 확인
-        var trail = other.GetComponent<LineTrailWithCollision>();
-        if (trail != null)
-        {
-            Debug.Log($"📏 충돌한 오브젝트에 LineTrail 있음. OwnerId: {trail.cornerTracker?.playerId}");
-        }
-        else
-        {
-            Debug.Log("❌ 충돌한 오브젝트에는 LineTrailWithCollision이 없음");
-        }
-
-        // 실제 충돌 로직 실행
-        CheckTrailCollision(other);
+        // 궤적 충돌 시스템이 MapManager 기반으로 변경되어 
+        // 이제 OnTriggerEnter2D는 사용하지 않습니다.
+        // 충돌 감지는 HandleMovement()에서 처리됩니다.
     }
 }
