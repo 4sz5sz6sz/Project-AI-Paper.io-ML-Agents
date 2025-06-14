@@ -21,6 +21,7 @@ public abstract class BasePlayerController : MonoBehaviour
     protected LoopDetector loopDetector;     // private LoopDetector loopDetector;
     protected MapManager mapManager;          // private MapManager mapManager;
     public bool wasInsideOwnedArea = false;        // private bool wasInsideOwnedArea = false;
+    protected MyAgent agent;
 
     // PlayerController.cs의 Start() 함수에 대응
     protected virtual void Start()
@@ -28,25 +29,32 @@ public abstract class BasePlayerController : MonoBehaviour
         gridPosition = Vector2Int.RoundToInt(transform.position);
         transform.position = new Vector3(gridPosition.x, gridPosition.y, -1f);
         targetPosition = transform.position; InitializeComponents();
-
         // wasInsideOwnedArea = mapManager.GetTile(gridPosition) == cornerTracker.playerId;
+
+        Vector2Int spawnPos = GetPlayerSpawnPosition(cornerTracker?.playerId ?? 1);
+        FullRespawn(spawnPos);
     }
 
     // PlayerController.cs에서 컴포넌트 초기화 부분을 분리
     protected virtual void InitializeComponents()
     {
-        // 자신의 컴포넌트들은 GetComponent 사용  s
-        // 🔧 자식 오브젝트 "TrailDrawer"에서 LineTrailWithCollision 가져오기
-        Transform trailObj = transform.Find("TrailDrawer");
-        if (trailObj != null)
+        if (trail == null)
         {
-            trail = trailObj.GetComponent<LineTrailWithCollision>();
+            Transform trailObj = transform.Find("TrailDrawer");
+            if (trailObj != null)
+            {
+                trail = trailObj.GetComponent<LineTrailWithCollision>();
+            }
         }
-        cornerTracker = GetComponent<CornerPointTracker>();
 
-        // 전역 매니저만 Find 사용
-        loopDetector = FindFirstObjectByType<LoopDetector>();
-        mapManager = FindFirstObjectByType<MapManager>();
+        if (cornerTracker == null)
+            cornerTracker = GetComponent<CornerPointTracker>();
+
+        if (loopDetector == null)
+            loopDetector = FindFirstObjectByType<LoopDetector>();
+
+        if (mapManager == null)
+            mapManager = FindFirstObjectByType<MapManager>();
     }
 
     /// <summary>
@@ -54,7 +62,7 @@ public abstract class BasePlayerController : MonoBehaviour
     /// </summary>
     public virtual void FullRespawn(Vector2Int newPosition)
     {
-        Debug.Log($"플레이어 {cornerTracker?.playerId} 완전 재스폰 시작: 위치 {newPosition}");
+        // Debug.Log($"플레이어 {cornerTracker?.playerId} 완전 재스폰 시작: 위치 {newPosition}");
 
         // 1. 위치 이동
         gridPosition = newPosition;
@@ -67,12 +75,21 @@ public abstract class BasePlayerController : MonoBehaviour
         isMoving = false;
         wasInsideOwnedArea = true; // 새로 스폰될 때는 자신의 영토에서 시작
 
-        // 3. 궤적 초기화
-        if (trail != null)
+        // 3. 궤적 초기화 이거 있어야댐 보이는 궤적을 초기화하는 것
+        // if (trail != null)
+        // {
+        //     trail.ResetTrail();
+        //     trail.trailActive = false; // 새로 스폰될 때는 궤적 비활성화
+        // }
+        trail.ResetTrail();
+        trail.trailActive = false; // 새로 스폰될 때는 궤적 비활성화
+
+        if (mapManager != null)
         {
-            trail.ResetTrail();
-            trail.trailActive = false;
+            mapManager.ClearPlayerTrails(cornerTracker?.playerId ?? -1);
+            mapManager.ClearPlayerTerritory(cornerTracker?.playerId ?? -1);
         }
+
         // 4. 코너 포인트 초기화
         if (cornerTracker != null)
         {
@@ -85,7 +102,7 @@ public abstract class BasePlayerController : MonoBehaviour
             mapManager.RespawnPlayerTerritory(cornerTracker.playerId, newPosition);
         }
 
-        Debug.Log($"플레이어 {cornerTracker?.playerId} 완전 재스폰 완료");
+        // Debug.Log($"플레이어 {cornerTracker?.playerId} 완전 재스폰 완료");
     }
 
     // PlayerController.cs의 Update() 함수에 대응
@@ -97,16 +114,55 @@ public abstract class BasePlayerController : MonoBehaviour
     // PlayerController.cs의 키보드 입력 처리 부분을 추상화
     protected abstract void HandleInput();
 
+    protected Vector2Int GetPlayerSpawnPosition(int playerId)
+    {
+        Vector2Int spawnPos;
+        Debug.Log($"플레이어 {playerId} 스폰 위치 결정");
+        switch (playerId)
+        {
+            case 1:
+                spawnPos = new Vector2Int(5, 5);
+                break;
+            case 2:
+                spawnPos = new Vector2Int(55, 20);
+                break;
+            case 3:
+                spawnPos = new Vector2Int(45, 35);
+                break;
+            case 4:
+                spawnPos = new Vector2Int(25, 25);
+                break;
+            default:
+                spawnPos = new Vector2Int(70, 20); // 예외 처리용 중앙 스폰
+                break;
+        }
+        return spawnPos;
+    }
+
     // PlayerController.cs의 이동 처리 로직을 분리
     protected virtual void HandleMovement()
     {
         HandleInput();        // 방향이 바뀔 때만 코너 저장 (180도 회전 제한 제거)
+        if (agent == null && cornerTracker?.playerId != 1) // 플레이어 1은 ML-Agent가 아니므로 예외 처리
+        {
+            agent = GetComponent<MyAgent>();
+            Debug.Log($"플레이어 {cornerTracker?.playerId} 에이전트 컴포넌트 찾음: {agent != null}");
+        }
+
+        //격자 칸에 도달 했을 때만 한번씩 실행되는 부분
+        //새로운 점을 지정하고 그 방향으로 움직이도록 함 
         if (!isMoving && queuedDirection != Vector2Int.zero)
         {
             // 내 영역 밖에 있을 때만 코너 저장
             if (direction != Vector2Int.zero && queuedDirection != direction && !wasInsideOwnedArea)
             {
                 cornerTracker?.AddCorner(gridPosition);
+            }
+
+            //매 칸에 도착 했을 때 보상함수 주도록 하기 
+            if (agent != null) // 플레이어 1은 ML-Agent가 아니므로 예외 처리
+            {
+                agent.RequestDecision(); // ML-Agent에게 결정 요청
             }
 
             direction = queuedDirection;
@@ -132,7 +188,11 @@ public abstract class BasePlayerController : MonoBehaviour
                 {
                     if (GameController.Instance != null)
                     {
-                        GameController.Instance.KillPlayer(cornerTracker.playerId);
+                        GameController.Instance.KillPlayer(cornerTracker.playerId, 1); // 1은 맵 경계 충돌 사망
+
+                        // 플레이어 스폰 위치 가져오기
+                        Vector2Int spawnPos = GetPlayerSpawnPosition(cornerTracker.playerId);
+                        FullRespawn(spawnPos);
                     }
                     return; // 사망 처리 후 더 이상 진행하지 않음
                 }
@@ -144,20 +204,49 @@ public abstract class BasePlayerController : MonoBehaviour
                     if (existingTrail == cornerTracker.playerId)
                     {
                         // 자신의 꼬리를 밟으면 자신이 죽음
-                        Debug.Log($"플레이어 {cornerTracker.playerId}: 자신의 꼬리를 밟아 사망!");
+
                         if (GameController.Instance != null)
                         {
-                            GameController.Instance.KillPlayer(cornerTracker.playerId);
+                            GameController.Instance.KillPlayer(cornerTracker.playerId, 2); // 2는 자신의 꼬리 밟음 사망
+                            // 플레이어 스폰 위치 가져오기
+                            Vector2Int spawnPos = GetPlayerSpawnPosition(cornerTracker.playerId);
+                            FullRespawn(spawnPos);
                         }
                         return; // 사망 처리 후 더 이상 진행하지 않음
                     }
                     else
                     {
                         // 다른 플레이어의 궤적을 밟으면 해당 플레이어가 죽음
-                        Debug.Log($"플레이어 {cornerTracker.playerId}: 플레이어 {existingTrail}의 궤적을 끊음!");
                         if (GameController.Instance != null)
                         {
-                            GameController.Instance.KillPlayer(existingTrail);
+                            Debug.Log($"플레이어 {cornerTracker.playerId}: 플레이어 {existingTrail}의 궤적을 끊음!");
+                            GameController.Instance.KillPlayer(existingTrail, 3); // 3은 다른 플레이어에게 궤적을 밟혀 사망
+
+                            // existingTrail의 주인인 플레이어의 BasePlayerController를 찾아서 respawn
+                            GameObject[] allPlayers = GameObject.FindGameObjectsWithTag("Player");
+
+                            foreach (GameObject player in allPlayers)
+                            {
+                                var tracker = player.GetComponent<CornerPointTracker>();
+
+                                if (tracker != null && tracker.playerId == existingTrail)
+                                {
+                                    var aiController = player.GetComponent<AIPlayerController>();
+                                    var playerController = player.GetComponent<PlayerController>();
+                                    
+                                    if (aiController != null)
+                                    {
+                                        Vector2Int otherSpawnPos = aiController.GetPlayerSpawnPosition(tracker.playerId);
+                                        aiController.FullRespawn(otherSpawnPos);
+                                    }
+                                    else if (playerController != null)
+                                    {
+                                        Vector2Int otherSpawnPos = playerController.GetPlayerSpawnPosition(tracker.playerId);
+                                        playerController.FullRespawn(otherSpawnPos);
+                                    }
+                                    break;
+                                }
+                            }
                         }
                         // 궤적을 끊었으므로 해당 위치의 궤적 제거
                         mapManager.SetTrail(gridPosition, 0);

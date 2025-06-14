@@ -40,11 +40,37 @@ public class MapManager : MonoBehaviour
         // 모든 플레이어 찾기
         BasePlayerController[] players = FindObjectsByType<BasePlayerController>(FindObjectsSortMode.None);
 
+        // 플레이어 1~4에 따라 위치 설정   
+        Vector2Int[] spawnPositions = new Vector2Int[]
+        {
+            new Vector2Int(5, 5),     // playerId 1
+            new Vector2Int(55, 20),   // playerId 2
+            new Vector2Int(45, 35),   // playerId 3
+            new Vector2Int(25, 25),   // playerId 4
+        };
+
         foreach (var player in players)
         {
-            Vector2Int playerPos = Vector2Int.RoundToInt(player.transform.position);
-            InitializePlayerTerritory(playerPos, player.GetComponent<CornerPointTracker>()?.playerId ?? 1);
+            var tracker = player.GetComponent<CornerPointTracker>();
+            int playerId = tracker.playerId;
+
+            // playerId는 1부터 시작하므로 배열 인덱스는 -1 해줘야 함
+            if (playerId >= 1 && playerId <= spawnPositions.Length)
+            {
+                Vector2Int spawnPos = spawnPositions[playerId - 1];
+                InitializePlayerTerritory(spawnPos, playerId);
+            }
+            else
+            {
+                Debug.LogWarning($"유효하지 않은 playerId: {playerId}");
+            }
         }
+
+        // foreach (var player in players)
+        // {
+        //     Vector2Int playerPos = Vector2Int.RoundToInt(player.transform.position);
+        //     InitializePlayerTerritory(playerPos, player.GetComponent<CornerPointTracker>()?.playerId ?? 1);
+        // }
 
         // TileRenderer 업데이트
         if (tileRenderer != null)
@@ -57,7 +83,7 @@ public class MapManager : MonoBehaviour
         int startX = Mathf.Clamp(center.x - halfSize, 0, width - INITIAL_TERRITORY_SIZE);
         int startY = Mathf.Clamp(center.y - halfSize, 0, height - INITIAL_TERRITORY_SIZE);
 
-        Debug.Log($"플레이어 {playerId}의 초기 영역 설정: 중심점({center.x}, {center.y})");
+        // Debug.Log($"플레이어 {playerId}의 초기 영역 설정: 중심점({center.x}, {center.y})");
 
         for (int x = startX; x < startX + INITIAL_TERRITORY_SIZE; x++)
         {
@@ -94,7 +120,7 @@ public class MapManager : MonoBehaviour
             int playerId = kvp.Key;
             int count = kvp.Value;
             GameController.Instance?.SetScore(playerId, count); // 점수 직접 설정
-            Debug.Log($"[초기 점수] 플레이어 {playerId}: {count}");
+            // Debug.Log($"[초기 점수] 플레이어 {playerId}: {count}");
         }
     }
 
@@ -201,7 +227,7 @@ public class MapManager : MonoBehaviour
         // 1) 다각형 성립 불가 시
         if (cornerPoints == null || cornerPoints.Count < 2)
         {
-            Debug.Log("[MapManager] ApplyCornerArea: 유효하지 않은 cornerPoints");
+            // Debug.Log("[MapManager] ApplyCornerArea: 유효하지 않은 cornerPoints");
             int totalCount = (tileRenderer != null)
                 ? tileRenderer.GetGreenCount()
                 : 0;
@@ -473,7 +499,7 @@ public class MapManager : MonoBehaviour
     /// </summary>
     public void RespawnPlayerTerritory(int playerId, Vector2Int spawnPosition)
     {
-        Debug.Log($"플레이어 {playerId} 재스폰: 위치 {spawnPosition}에 새 영토 생성");
+        // Debug.Log($"플레이어 {playerId} 재스폰: 위치 {spawnPosition}에 새 영토 생성");
 
         // 먼저 기존 영토와 궤적을 모두 제거
         ClearPlayerTerritory(playerId);
@@ -521,6 +547,6 @@ public class MapManager : MonoBehaviour
             tileRenderer.RedrawAllTiles();
         }
 
-        Debug.Log($"플레이어 {playerId} 재스폰 완료: 점수 {initialScore}로 설정 (검증됨)");
+        // Debug.Log($"플레이어 {playerId} 재스폰 완료: 점수 {initialScore}로 설정 (검증됨)");
     }
 }

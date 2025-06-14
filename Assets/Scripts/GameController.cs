@@ -154,8 +154,10 @@ public class GameController : MonoBehaviour
             playerTexts[playerId - 1].text = $"P{playerId}: {playerScores[playerId]}";
         }
     }
-    public void KillPlayer(int playerId)
+    public void KillPlayer(int playerId, int deathType = -1)
     {
+        //deathType: 1은 맵 경계 충돌, 2는 자신의 꼬리 밟음, 3은 다른 플레이어에게 궤적을 밟혀 사망, -1은 비정상 작동
+
         // 플레이어 오브젝트 찾기
         GameObject player = FindPlayerById(playerId);
         if (player != null)
@@ -170,7 +172,9 @@ public class GameController : MonoBehaviour
                 mainCamera.transform.position = new Vector3(lastPosition.x, lastPosition.y, -10f);
                 cameraFollowMode = false; // 고정 모드로 전환
                 followingPlayerId = -1; // 추적 대상 초기화
-            }            // MyAgent인지 확인
+            }
+
+            // MyAgent인지 확인
             MyAgent agent = player.GetComponent<MyAgent>();
             if (agent != null)
             {
@@ -179,15 +183,32 @@ public class GameController : MonoBehaviour
                 {
                     MapManager.Instance.ClearPlayerTrails(playerId);
                 }
-
+                switch (deathType)
+                {
+                    case 1:
+                        // 맵 경계 충돌로 사망
+                        agent.RewardKilledByWallDeath();
+                        
+                        break;
+                    case 2:
+                        // 자신의 꼬리 밟음으로 사망
+                        agent.RewardKilledBySelfDeath();
+              
+                        break;
+                    case 3:
+                        // 다른 플레이어에게 궤적을 밟혀 사망
+                        agent.RewarKilledByOthers();
+                        
+                        break;
+                }
                 // 즉시 사망 알림 및 재시작 (점수는 재시작에서 초기화됨)
                 agent.NotifyDeath();
-                Debug.Log($"ML-Agent Player {playerId} 사망 - NotifyDeath() 호출로 즉시 재시작");
+                // Debug.Log($"ML-Agent Player {playerId} 사망 - NotifyDeath() 호출로 즉시 재시작");
             }
             else
             {
                 // 일반 플레이어인 경우: 기존처럼 처리
-                Destroy(player);
+                // Destroy(player);
 
                 // 사망한 플레이어의 궤적과 영토 제거
                 if (MapManager.Instance != null)
@@ -197,7 +218,7 @@ public class GameController : MonoBehaviour
                 }
 
                 // 점수를 -1로 설정 (사망 표시)
-                SetScore(playerId, -1);
+                // SetScore(playerId, -1);
             }
         }
     }

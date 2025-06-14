@@ -110,7 +110,7 @@ public class CornerPointTracker : MonoBehaviour
 
     public void Clear()
     {
-        Debug.Log("🧹 코너 포인트 초기화");
+        // Debug.Log("🧹 코너 포인트 초기화");
         cornerPoints.Clear();
         additionalPoints.Clear();
         // if (additionalLineRenderer != null)
