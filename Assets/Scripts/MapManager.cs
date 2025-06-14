@@ -62,7 +62,7 @@ public class MapManager : MonoBehaviour
             }
             else
             {
-                Debug.LogWarning($"유효하지 않은 playerId: {playerId}");
+                // Debug.LogWarning($"유효하지 않은 playerId: {playerId}");
             }
         }
 
@@ -267,13 +267,13 @@ public class MapManager : MonoBehaviour
         // 디버그 출력 - 비정상적으로 많은 점수 획득 시 경고
         if (gained > 1000)
         {
-            Debug.LogWarning($"[MapManager] 플레이어 {ownerValue}: 비정상적으로 많은 타일 획득! " +
-                           $"이전={before}, 이후={after}, 획득={gained}");
+            // Debug.LogWarning($"[MapManager] 플레이어 {ownerValue}: 비정상적으로 많은 타일 획득! " +
+            //                $"이전={before}, 이후={after}, 획득={gained}");
         }
         else
         {
-            Debug.Log($"[MapManager] 플레이어 {ownerValue}: " +
-                      $"이전={before}, 이후={after}, 획득={gained}");
+            // Debug.Log($"[MapManager] 플레이어 {ownerValue}: " +
+            //           $"이전={before}, 이후={after}, 획득={gained}");
         }
 
         // GameController에 업데이트된 점수 설정
@@ -549,7 +549,7 @@ public class MapManager : MonoBehaviour
             int verifyScore = GameController.Instance.GetScore(playerId);
             if (verifyScore != initialScore)
             {
-                Debug.LogWarning($"점수 설정 실패! 재시도... 목표: {initialScore}, 현재: {verifyScore}");
+                // Debug.LogWarning($"점수 설정 실패! 재시도... 목표: {initialScore}, 현재: {verifyScore}");
                 GameController.Instance.SetScore(playerId, initialScore);
             }
         }

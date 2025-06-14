@@ -69,9 +69,9 @@ public class MyAgent : Agent
         isDead = false;
 
         // **🚨 NEW: 영역 확보 추적 변수 초기화**
-        consecutiveTerritoryGains = 0;
-        lastTerritoryTime = 0f;
-        totalTerritoryGainedThisEpisode = 0;
+        // consecutiveTerritoryGains = 0;
+        // lastTerritoryTime = 0f;
+        // totalTerritoryGainedThisEpisode = 0;
 
         // **히스토리 초기화**
         directionHistory.Clear();
@@ -780,82 +780,81 @@ public class MyAgent : Agent
         {
             isDead = true;
             // Debug.Log($"MyAgent({controller?.playerID}): 사망 감지됨. 즉시 재시작.");
-
             // 약간의 지연을 두고 에피소드 종료 (상태 안정화)
             Invoke(nameof(DelayedEndEpisode), 0.1f);
         }
     }
 
-    // **🚨 NEW: 영역 완성 감지 및 보상 시스템**
-    public void NotifyTerritoryCompletion(int gainedTiles)
-    {
-        if (gainedTiles > 0)
-        {
-            // 📈 획득한 타일 수에 비례하는 압도적인 보상 시스템
-            float territoryReward = gainedTiles * 1.5f; // 기본 생존 보상(0.01f) 대비 150배 강력
+    // // **🚨 NEW: 영역 완성 감지 및 보상 시스템**
+    // public void NotifyTerritoryCompletion(int gainedTiles)
+    // {
+    //     if (gainedTiles > 0)
+    //     {
+    //         // 📈 획득한 타일 수에 비례하는 압도적인 보상 시스템
+    //         float territoryReward = gainedTiles * 1.5f; // 기본 생존 보상(0.01f) 대비 150배 강력
 
-            // 🎯 대규모 영역 확보 시 추가 보너스
-            if (gainedTiles >= 50)
-            {
-                territoryReward += 25.0f; // 대규모 확장 보너스
-                // Debug.Log($"[MyAgent] 🏆 MASSIVE TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 대규모 보너스!");
-            }
-            else if (gainedTiles >= 20)
-            {
-                territoryReward += 10.0f; // 중규모 확장 보너스
-                // Debug.Log($"[MyAgent] 🎖️ LARGE TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 중규모 보너스!");
-            }
-            else if (gainedTiles >= 10)
-            {
-                territoryReward += 5.0f; // 소규모 확장 보너스
-                // Debug.Log($"[MyAgent] 🥇 GOOD TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 소규모 보너스!");
-            }
+    //         // 🎯 대규모 영역 확보 시 추가 보너스
+    //         if (gainedTiles >= 50)
+    //         {
+    //             territoryReward += 25.0f; // 대규모 확장 보너스
+    //             // Debug.Log($"[MyAgent] 🏆 MASSIVE TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 대규모 보너스!");
+    //         }
+    //         else if (gainedTiles >= 20)
+    //         {
+    //             territoryReward += 10.0f; // 중규모 확장 보너스
+    //             // Debug.Log($"[MyAgent] 🎖️ LARGE TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 중규모 보너스!");
+    //         }
+    //         else if (gainedTiles >= 10)
+    //         {
+    //             territoryReward += 5.0f; // 소규모 확장 보너스
+    //             // Debug.Log($"[MyAgent] 🥇 GOOD TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 소규모 보너스!");
+    //         }
 
-            AddReward(territoryReward);
-            // Debug.Log($"[MyAgent] 💰 TERRITORY REWARD! Player {controller?.playerID}: " +
-            //          $"획득 타일 {gainedTiles}개 → 보상 {territoryReward:F2}점!");
+    //         AddReward(territoryReward);
+    //         // Debug.Log($"[MyAgent] 💰 TERRITORY REWARD! Player {controller?.playerID}: " +
+    //         //          $"획득 타일 {gainedTiles}개 → 보상 {territoryReward:F2}점!");
 
-            // 🎯 연속 영역 확보 감지 및 추가 보상
-            RegisterTerritoryExpansion(gainedTiles);
-        }
-    }    // **🚨 NEW: 연속 영역 확보 추적 및 효율성 보상**
-    private int consecutiveTerritoryGains = 0;
-    private float lastTerritoryTime = 0f;
-    private int totalTerritoryGainedThisEpisode = 0;
+    //         // 🎯 연속 영역 확보 감지 및 추가 보상
+    //         RegisterTerritoryExpansion(gainedTiles);
+    //     }
+    // }    // **🚨 NEW: 연속 영역 확보 추적 및 효율성 보상**
+    // private int consecutiveTerritoryGains = 0;
+    // private float lastTerritoryTime = 0f;
+    // private int totalTerritoryGainedThisEpisode = 0;
 
-    // **🚨 NEW: 플레이어 ID 확인용 public 프로퍼티**
-    public int PlayerID => controller?.playerID ?? -1;
+    // // **🚨 NEW: 플레이어 ID 확인용 public 프로퍼티**
+    // public int PlayerID => controller?.playerID ?? -1;
 
-    private void RegisterTerritoryExpansion(int gainedTiles)
-    {
-        totalTerritoryGainedThisEpisode += gainedTiles;
+    // private void RegisterTerritoryExpansion(int gainedTiles)
+    // {
+    //     totalTerritoryGainedThisEpisode += gainedTiles;
 
-        // 빠른 연속 영역 확보 감지 (30초 이내)
-        if (Time.time - lastTerritoryTime < 30f)
-        {
-            consecutiveTerritoryGains++;
+    //     // 빠른 연속 영역 확보 감지 (30초 이내)
+    //     if (Time.time - lastTerritoryTime < 30f)
+    //     {
+    //         consecutiveTerritoryGains++;
 
-            // 연속 확장 보너스
-            float consecutiveBonus = consecutiveTerritoryGains * 2.0f;
-            AddReward(consecutiveBonus);
-            // Debug.Log($"[MyAgent] 🔥 CONSECUTIVE EXPANSION! Player {controller?.playerID}: " +
-            //          $"연속 {consecutiveTerritoryGains}회 → 추가 보상 {consecutiveBonus:F2}점!");
-        }
-        else
-        {
-            consecutiveTerritoryGains = 1; // 첫 번째 확장으로 초기화
-        }
+    //         // 연속 확장 보너스
+    //         float consecutiveBonus = consecutiveTerritoryGains * 2.0f;
+    //         AddReward(consecutiveBonus);
+    //         // Debug.Log($"[MyAgent] 🔥 CONSECUTIVE EXPANSION! Player {controller?.playerID}: " +
+    //         //          $"연속 {consecutiveTerritoryGains}회 → 추가 보상 {consecutiveBonus:F2}점!");
+    //     }
+    //     else
+    //     {
+    //         consecutiveTerritoryGains = 1; // 첫 번째 확장으로 초기화
+    //     }
 
-        lastTerritoryTime = Time.time;
+    //     lastTerritoryTime = Time.time;
 
-        // 에피소드 총 영역 확보 성과 보상
-        if (totalTerritoryGainedThisEpisode >= 100)
-        {
-            AddReward(15.0f); // 에피소드 내 100 타일 이상 확보 시 특별 보상
-            // Debug.Log($"[MyAgent] 👑 EPISODE MASTER! Player {controller?.playerID}: " +
-            //          $"총 {totalTerritoryGainedThisEpisode} 타일 확보!");
-        }
-    }
+    //     // 에피소드 총 영역 확보 성과 보상
+    //     if (totalTerritoryGainedThisEpisode >= 100)
+    //     {
+    //         AddReward(15.0f); // 에피소드 내 100 타일 이상 확보 시 특별 보상
+    //         // Debug.Log($"[MyAgent] 👑 EPISODE MASTER! Player {controller?.playerID}: " +
+    //         //          $"총 {totalTerritoryGainedThisEpisode} 타일 확보!");
+    //     }
+    // }
 
     private void DelayedEndEpisode()
     {
@@ -864,11 +863,6 @@ public class MyAgent : Agent
 
     public override void OnActionReceived(ActionBuffers actions)
     {
-        if (controller?.playerID == 2)
-        {
-            // Debug.Log($"[MyAgent] OnActionReceived called for Player {controller?.playerID}");
-        }
-
         int action = actions.DiscreteActions[0];
 
         if (controller != null && action >= 0 && action < possibleActions.Length)
@@ -903,7 +897,7 @@ public class MyAgent : Agent
                 return;
             }
 
-            if (currentScore >= 10000) // 승리
+            if (currentScore >= 4000) // 승리
             {
                 AddReward(10.0f);
                 EndEpisode();
@@ -967,8 +961,18 @@ public class MyAgent : Agent
         int rank = GetMyRankAmongPlayers(myScore);
 
 
+        // 0. 자기 영역 안에 너무 오래 머물면 감점
+        bool currentlyInOwnTerritory = mapManager.InBounds(currentPos) &&
+                                       mapManager.GetTile(currentPos) == controller.playerID;
+
         // 1. 위협 상황에서 귀환 성공 시 보상
         bool isInSafeZone = mapManager.InBounds(nextPos) && mapManager.GetTile(nextPos) == controller.playerID;
+
+        if (isInSafeZone)
+        {
+            AddReward(-0.002f);
+        }
+
         if (lastThreatLevel > 0.7f && isInSafeZone)
         {
             AddReward(+0.01f * (1 + (4 - rank) * 0.1f)); // 승부 의식 보상
@@ -977,7 +981,7 @@ public class MyAgent : Agent
         // 3. trail이 너무 길고 오래 유지되었는데 아직도 안 닫았다면 패널티
         if (trailIsOpen && lastTrailLength > 40 && (Time.time - trailStartTime) > 10f)
         {
-            AddReward(-0.0015f * (1 + (4 - rank) * 0.1f));
+            // AddReward(-0.0015f * (1 + (4 - rank) * 0.1f));
         }
 
         // 4. 적 근처에서 회피 성공했는지 체크
@@ -996,11 +1000,11 @@ public class MyAgent : Agent
             float trailDuration = Time.time - trailStartTime;
             if (lastTrailLength > 10 && trailDuration > 5f)
             {
-                AddReward(0.0015f * delta * (1 + (rank - 1) * 0.1f)); // 점령 보상 (승부 의식 반영)
+                AddReward(0.01f * delta * (1 + (rank - 1) * 0.1f)); // 점령 보상 (승부 의식 반영)
             }
             else
             {
-                AddReward(0.001f * delta * (1 + (rank - 1) * 0.1f)); // 점령 보상
+                AddReward(0.005f * delta * (1 + (rank - 1) * 0.1f)); // 점령 보상
             }
         }
         else if (delta < 0)

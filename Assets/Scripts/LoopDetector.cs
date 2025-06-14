@@ -27,16 +27,16 @@ public class LoopDetector : MonoBehaviour
         Vector2Int last = points[^1];
         int tile = mapManager.GetTile(last);
 
-        Debug.Log($"🔍 폐곡선 검사: 마지막점={last}, tile={tile}, playerId={tracker.playerId}");
+        // Debug.Log($"🔍 폐곡선 검사: 마지막점={last}, tile={tile}, playerId={tracker.playerId}");
 
         if (tile == tracker.playerId)
         {
-            Debug.Log("✅ 폐곡선 충족! FinalizePolygon 호출");
+            // Debug.Log("✅ 폐곡선 충족! FinalizePolygon 호출");
             tracker.FinalizePolygon();
         }
         else
         {
-            Debug.Log("❌ 폐곡선 조건 불충족: 내 땅 아님");
+            // Debug.Log("❌ 폐곡선 조건 불충족: 내 땅 아님");
         }
     }
 }
