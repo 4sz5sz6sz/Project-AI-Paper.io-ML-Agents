@@ -493,6 +493,20 @@ public class MapManager : MonoBehaviour
         return inside;
     }
 
+    public int GetOwnedTileCount(int playerID)
+    {
+        int count = 0;
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                if (GetTile(new Vector2Int(x, y)) == playerID)
+                    count++;
+            }
+        }
+        return count;
+    }
+
     /// <summary>
     /// ML-Agent 재스폰을 위한 영토 재생성 메서드
     /// </summary>

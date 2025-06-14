@@ -197,7 +197,7 @@ public class GameController : MonoBehaviour
                         break;
                     case 3:
                         // 다른 플레이어에게 궤적을 밟혀 사망
-                        agent.RewarKilledByOthers();
+                        agent.RewardKilledByOthers();
                         
                         break;
                 }

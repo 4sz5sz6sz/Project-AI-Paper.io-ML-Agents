@@ -74,8 +74,9 @@ public class CornerPointTracker : MonoBehaviour
         {
             if (agent.PlayerID == playerId)
             {
-                agent.NotifyTerritoryCompletion(gainedTiles);
-                Debug.Log($"[CornerPointTracker] 🎉 MyAgent Player {playerId}에게 영역 완성 알림: {gainedTiles} 타일 획득!");
+                //임시로 막아뒀음 나중에 다시 써야할수도? 
+                // agent.NotifyTerritoryCompletion(gainedTiles);
+                // Debug.Log($"[CornerPointTracker] 🎉 MyAgent Player {playerId}에게 영역 완성 알림: {gainedTiles} 타일 획득!");
                 break;
             }
         }

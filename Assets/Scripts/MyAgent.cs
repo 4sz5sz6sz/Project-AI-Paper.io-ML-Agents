@@ -33,6 +33,8 @@ public class MyAgent : Agent
     private int lastTrailLength;
     private float trailStartTime;
     private bool trailIsOpen;
+    private int prevOwnedTileCount;
+
 
     void Start()
     {
@@ -60,6 +62,7 @@ public class MyAgent : Agent
         lastTrailLength = 0;
         trailStartTime = 0f;
         trailIsOpen = false;
+        prevOwnedTileCount = 0;
 
         previousScore = 0f;
         stepsWithoutProgress = 0;
@@ -776,7 +779,6 @@ public class MyAgent : Agent
         if (!isDead) // 중복 호출 방지
         {
             isDead = true;
-            SetReward(-10.0f); // 사망 페널티
             // Debug.Log($"MyAgent({controller?.playerID}): 사망 감지됨. 즉시 재시작.");
 
             // 약간의 지연을 두고 에피소드 종료 (상태 안정화)
@@ -879,24 +881,7 @@ public class MyAgent : Agent
 
             // **핵심 수정: 경계 체크를 먼저 수행**
             Vector2Int nextPos = currentPos + newDirection;
-            // **경계 밖으로 나가려는 시도를 강력히 차단**
-            if (!mapManager.InBounds(nextPos))
-            {
-                // Debug.LogWarning($"[MyAgent] 경계 밖 이동 시도 차단! 현재: {currentPos}, 다음: {nextPos}");
-                AddReward(-5.0f); // 경계 이동 시도에 매우 큰 페널티
-            }
 
-            // **자기 궤적 충돌 방지 (즉시 사망 방지)**
-            nextPos = currentPos + newDirection; // 방향이 변경되었을 수 있으므로 재계산
-            if (mapManager.InBounds(nextPos))
-            {
-                int nextTrail = mapManager.GetTrail(nextPos);
-                if (nextTrail == controller.playerID)
-                {
-                    // Debug.LogWarning($"[MyAgent] 자기 궤적 충돌 시도 차단! 현재: {currentPos}, 다음: {nextPos}");
-                    AddReward(-10.0f); // 자기 궤적 충돌 시도에 매우 큰 페널티
-                }
-            }
             // **🚨 위협 평가 기반 향상된 보상 시스템**
             CalculateSmartRewards(newDirection, currentPos);
             controller.SetDirection(newDirection);
@@ -920,7 +905,7 @@ public class MyAgent : Agent
 
             if (currentScore >= 10000) // 승리
             {
-                SetReward(50.0f);
+                AddReward(10.0f);
                 EndEpisode();
                 return;
             }
@@ -929,17 +914,18 @@ public class MyAgent : Agent
 
     public void RewardKilledByWallDeath()
     {
-        SetReward(-0.5f);
+        AddReward(-2.5f);
     }
 
     public void RewardKilledBySelfDeath()
     {
-        SetReward(-1.0f);
+        AddReward(-5.0f);
     }
 
     public void RewardKilledByOthers()
     {
-        SetReward(-0.7f);
+        // 다른 플레이어에게 사망했을 때 보상
+        AddReward(-3.5f);
     }
 
 
@@ -976,41 +962,71 @@ public class MyAgent : Agent
     {
         Vector2Int nextPos = currentPos + dir;
 
+        // ✅ 7. 승부 의식 기반 보상
+        int myScore = mapManager.GetOwnedTileCount(controller.playerID);
+        int rank = GetMyRankAmongPlayers(myScore);
+
+
         // 1. 위협 상황에서 귀환 성공 시 보상
         bool isInSafeZone = mapManager.InBounds(nextPos) && mapManager.GetTile(nextPos) == controller.playerID;
         if (lastThreatLevel > 0.7f && isInSafeZone)
         {
-            AddReward(+3.0f); // 위험 속 귀환 성공
-        }
-
-        // 2. trail을 일정 길이 이상 유지한 후 안전하게 닫은 경우
-        if (trailIsOpen && isInSafeZone)
-        {
-            float trailDuration = Time.time - trailStartTime;
-            if (lastTrailLength > 10 && trailDuration > 5f)
-            {
-                AddReward(+1.5f); // 위험 감수 성공
-            }
-
-            trailIsOpen = false; // trail 종료
+            AddReward(+0.01f * (1 + (4 - rank) * 0.1f)); // 승부 의식 보상
         }
 
         // 3. trail이 너무 길고 오래 유지되었는데 아직도 안 닫았다면 패널티
-        if (trailIsOpen && lastTrailLength > 20 && (Time.time - trailStartTime) > 10f)
+        if (trailIsOpen && lastTrailLength > 40 && (Time.time - trailStartTime) > 10f)
         {
-            AddReward(-0.5f); // 불필요한 리스크 지속
+            AddReward(-0.0015f * (1 + (4 - rank) * 0.1f));
         }
 
-        // 4. 적 근처에서 회피 성공했는지 체크 (optional)
+        // 4. 적 근처에서 회피 성공했는지 체크
         float enemyDistance = EstimateNearestEnemyDistance(currentPos);
         if (enemyDistance < 3f && isInSafeZone)
         {
-            AddReward(+1.0f); // 도망 성공
+            AddReward(+0.01f * (1 + (4 - rank) * 0.1f));
         }
+
+        // ✅ 5. 점유율 변화량 보상
+        int currentOwned = CountOwnedTiles(controller.playerID);
+        int delta = currentOwned - prevOwnedTileCount;
+        if (delta > 0)
+        {
+
+            float trailDuration = Time.time - trailStartTime;
+            if (lastTrailLength > 10 && trailDuration > 5f)
+            {
+                AddReward(0.0015f * delta * (1 + (rank - 1) * 0.1f)); // 점령 보상 (승부 의식 반영)
+            }
+            else
+            {
+                AddReward(0.001f * delta * (1 + (rank - 1) * 0.1f)); // 점령 보상
+            }
+        }
+        else if (delta < 0)
+            AddReward(-0.001f * Mathf.Abs(delta)); // 점령 손실 페널티
+        prevOwnedTileCount = currentOwned;
+
+        // ✅ 6. 전략적 공격 보상: 적 trail 차단
+        int trailOwner = mapManager.GetTrail(nextPos);
+        if (trailOwner != 0 && trailOwner != controller.playerID)
+        {
+            // 해당 trail의 주인(playerID)을 기반으로 점유 영역 수를 가져옴
+            int enemyOwnedTiles = CountOwnedTiles(trailOwner);
+
+            // 비례 보상 (예: 영역 3000이면 3점)
+            float reward = enemyOwnedTiles * 0.001f * (1 + (rank - 1) * 0.1f);
+
+            AddReward(reward);
+
+            // 디버깅 로그(optional)
+            // Debug.Log($"🔥 적 trail 차단! 대상 ID: {trailOwner}, 점령 타일: {enemyOwnedTiles}, 보상: {reward:F2}");
+        }
+
+
 
         // 상태 업데이트
         lastTrailLength = CountTrailTiles(controller.playerID);
-
         if (!trailIsOpen && lastTrailLength > 0)
         {
             trailStartTime = Time.time;
@@ -1054,6 +1070,39 @@ public class MyAgent : Agent
         }
 
         return minDist;
+    }
+
+    private int CountOwnedTiles(int playerID)
+    {
+        int count = 0;
+        for (int x = 0; x < mapManager.width; x++)
+        {
+            for (int y = 0; y < mapManager.height; y++)
+            {
+                if (mapManager.GetTile(new Vector2Int(x, y)) == playerID)
+                    count++;
+            }
+        }
+        return count;
+    }
+
+    private int GetTotalPlayers()
+    {
+        return UnityEngine.Object.FindObjectsOfType<BasePlayerController>().Length;
+    }
+
+    private int GetMyRankAmongPlayers(int myScore)
+    {
+        var players = UnityEngine.Object.FindObjectsOfType<BasePlayerController>();
+        List<int> scores = new List<int>();
+
+        foreach (var p in players)
+        {
+            scores.Add(mapManager.GetOwnedTileCount(p.GetComponent<CornerPointTracker>().playerId));
+        }
+
+        scores.Sort((a, b) => b.CompareTo(a)); // 내림차순
+        return scores.IndexOf(myScore) + 1;
     }
 
     // **히스토리 업데이트**
