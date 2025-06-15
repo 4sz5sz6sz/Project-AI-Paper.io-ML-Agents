@@ -44,7 +44,7 @@ results/
 conda activate mlagents
 
 # 학습 시작 (로컬 폴더에)
-mlagents-learn config.yaml --run-id=my_experiment
+mlagents-learn basic.yaml --run-id=run999
 
 # Unity Play 버튼 클릭
 ```
@@ -55,13 +55,17 @@ mlagents-learn config.yaml --run-id=my_experiment
 
    ```bash
    # 로컬 results → Git results로 복사
-   cp -r ~/ml-results/good_run/ results/shared_models/my_breakthrough/
+   cp -r ~/ml-agents/result/run999/ results/shared_models/run999/
    ```
+
+   또는,
+
+   results/shared_models 에 수동 복사.
 
 2. **Git에 추가**:
    ```bash
-   git add results/shared_models/my_breakthrough/
-   git commit -m "feat: Add breakthrough model - survival 90%"
+   git add results/shared_models/run999/
+   git commit -m "feat: Add run999 model - survival 90%"
    ```
 
 ---
@@ -82,7 +86,7 @@ ONNX 모델 있을 때    → AI 플레이
 
 | 모델명            | 성능 | 특징          | 사용법            |
 | ----------------- | ---- | ------------- | ----------------- |
-| `run6_good_model` | 우수 | 안정적 플레이 | `Basic.onnx` 사용 |
+| `run6_good_model` | 보통 | 안정적 플레이 | `Basic.onnx` 사용 |
 
 ---
 
