@@ -475,6 +475,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 7106441921147378981, guid: 1d8f2f5aeb9b6524ab467c4e0e2c4609, type: 3}
+      propertyPath: m_BrainParameters.VectorObservationSize
+      value: 1334
+      objectReference: {fileID: 0}
     - target: {fileID: 8650089224967987095, guid: 1d8f2f5aeb9b6524ab467c4e0e2c4609, type: 3}
       propertyPath: m_Name
       value: Player2
