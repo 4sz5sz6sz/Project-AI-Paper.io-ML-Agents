@@ -1,6 +1,7 @@
 using TMPro;
 using UnityEngine;
 using System.Collections.Generic;
+using System.Linq;
 
 public class GameController : MonoBehaviour
 {
@@ -14,6 +15,7 @@ public class GameController : MonoBehaviour
     private static Camera mainCamera;
     private static bool cameraFollowMode = false; // true면 특정 플레이어 추적, false면 고정
     private static int followingPlayerId = -1;
+
 
     void Awake()
     {
@@ -54,6 +56,37 @@ public class GameController : MonoBehaviour
     {
         HandleCameraControl(); // 카메라 제어 처리
     }    // 카메라 제어 입력 처리
+
+    void SortScores()
+    {
+        // playerTexts가 준비되지 않았거나 최소 4개 미만일 땐 실행하지 않음 : 안전장치
+        if (playerTexts == null || playerTexts.Length < 4)
+            return;
+
+        // 1) sortedScores: 플레이어 ID와 점수를 저장하는 리스트 복사
+        var sortedScores = new List<KeyValuePair<int, int>>(playerScores);
+
+        // 2) 점수 기준 내림차순 정렬
+        sortedScores.Sort((a, b) => b.Value.CompareTo(a.Value));
+
+        // 3) UI 텍스트 슬롯에 순위별로 점수 할당
+        for (int i = 0; i < playerTexts.Length; i++)
+        {
+            if (i < sortedScores.Count)
+            {
+                int playerId = sortedScores[i].Key;
+                int score = sortedScores[i].Value;
+                playerTexts[i].text = $"P{playerId}: {score}";
+            }
+            else
+            {
+                // 점수가 없는 슬롯은 0점으로 초기화
+                playerTexts[i].text = $"P{i + 1}: 0";
+            }
+        }
+    }
+
+
     private void HandleCameraControl()
     {
         // 카메라가 없으면 다시 찾기
@@ -130,11 +163,7 @@ public class GameController : MonoBehaviour
     public void SetScore(int playerId, int score)
     {
         playerScores[playerId] = score;
-
-        if (playerTexts != null && playerId >= 1 && playerId <= playerTexts.Length)
-        {
-            playerTexts[playerId - 1].text = $"P{playerId}: {score}";
-        }
+        SortScores(); // 점수 설정할 때도 정렬 수행
     }
 
     public int GetScore(int playerId)
@@ -148,11 +177,7 @@ public class GameController : MonoBehaviour
             playerScores[playerId] = 0;
 
         playerScores[playerId] += delta;
-
-        if (playerTexts != null && playerId >= 1 && playerId <= playerTexts.Length)
-        {
-            playerTexts[playerId - 1].text = $"P{playerId}: {playerScores[playerId]}";
-        }
+        SortScores(); // 점수 변경할 때마다 정렬 수행
     }
     public void KillPlayer(int playerId, int deathType = -1)
     {
@@ -188,17 +213,17 @@ public class GameController : MonoBehaviour
                     case 1:
                         // 맵 경계 충돌로 사망
                         agent.RewardKilledByWallDeath();
-                        
+
                         break;
                     case 2:
                         // 자신의 꼬리 밟음으로 사망
                         agent.RewardKilledBySelfDeath();
-              
+
                         break;
                     case 3:
                         // 다른 플레이어에게 궤적을 밟혀 사망
                         agent.RewardKilledByOthers();
-                        
+
                         break;
                 }
                 // 즉시 사망 알림 및 재시작 (점수는 재시작에서 초기화됨)
