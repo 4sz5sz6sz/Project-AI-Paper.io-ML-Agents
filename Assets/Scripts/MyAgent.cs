@@ -884,7 +884,7 @@ public class MyAgent : Agent
         }
         else
         {
-            AddReward(-0.1f); // 잘못된 행동에 페널티
+            AddReward(-1.0f); // 잘못된 행동에 페널티 (10배: -0.1f → -1.0f)
         }
 
         // 게임 종료 체크
@@ -898,30 +898,28 @@ public class MyAgent : Agent
                 NotifyDeath();
                 return;
             }
-
             if (currentScore >= 4000) // 승리
             {
-                AddReward(10.0f);
+                AddReward(100.0f); // 10배 스케일링: 10.0f → 100.0f
                 EndEpisode();
                 return;
             }
         }
     }
-
     public void RewardKilledByWallDeath()
     {
-        AddReward(-2.5f);
+        AddReward(-25.0f); // 10배 스케일링: -2.5f → -25.0f
     }
 
     public void RewardKilledBySelfDeath()
     {
-        AddReward(-5.0f);
+        AddReward(-50.0f); // 10배 스케일링: -5.0f → -50.0f
     }
 
     public void RewardKilledByOthers()
     {
         // 다른 플레이어에게 사망했을 때 보상
-        AddReward(-3.5f);
+        AddReward(-35.0f); // 10배 스케일링: -3.5f → -35.0f
     }
     public override void Heuristic(in ActionBuffers actionsOut)
     {
@@ -968,19 +966,19 @@ public class MyAgent : Agent
         // 1. 위협 상황에서 귀환 성공 시 보상
         bool isInSafeZone = mapManager.InBounds(nextPos) && mapManager.GetTile(nextPos) == controller.playerID; if (isInSafeZone)
         {
-            AddReward(-0.01f); // 안전지대 페널티 강화 (소극적 플레이 방지)
+            AddReward(-0.1f); // 안전지대 페널티 강화 (10배 스케일링: -0.01f → -0.1f)
         }
 
         if (lastThreatLevel > 0.7f && isInSafeZone)
         {
-            AddReward(+0.01f); // 승부 의식 보상 (등수 보정 제거)
+            AddReward(+0.1f); // 승부 의식 보상 (10배 스케일링: +0.01f → +0.1f)
         }
 
         // 2. 적극적 플레이 장려 보상
         bool isLeavingSafeZone = currentlyInOwnTerritory && !isInSafeZone;
         if (isLeavingSafeZone)
         {
-            AddReward(+0.015f); // 안전지대를 벗어나는 것에 대한 보상
+            AddReward(+0.15f); // 안전지대를 벗어나는 것에 대한 보상 (10배 스케일링: +0.015f → +0.15f)
         }
 
         // 3. trail이 너무 길고 오래 유지되었는데 아직도 안 닫았다면 패널티
@@ -993,7 +991,7 @@ public class MyAgent : Agent
         float enemyDistance = EstimateNearestEnemyDistance(currentPos);
         if (enemyDistance < 3f && isInSafeZone)
         {
-            AddReward(+0.01f * (1 + (4 - rank) * 0.1f));
+            AddReward(+0.1f * (1 + (4 - rank) * 0.1f)); // 10배 스케일링: +0.01f → +0.1f
         }
 
         // ✅ 5. 점유율 변화량 보상
@@ -1005,15 +1003,15 @@ public class MyAgent : Agent
             float trailDuration = Time.time - trailStartTime;
             if (lastTrailLength > 10 && trailDuration > 5f)
             {
-                AddReward(0.01f * delta); // 점령 보상
+                AddReward(0.1f * delta); // 점령 보상 (10배 스케일링: 0.01f → 0.1f)
             }
             else
             {
-                AddReward(0.005f * delta); // 점령 보상
+                AddReward(0.05f * delta); // 점령 보상 (10배 스케일링: 0.005f → 0.05f)
             }
         }
         else if (delta < 0)
-            AddReward(-0.001f * Mathf.Abs(delta)); // 점령 손실 페널티
+            AddReward(-0.01f * Mathf.Abs(delta)); // 점령 손실 페널티 (10배 스케일링: -0.001f → -0.01f)
         prevOwnedTileCount = currentOwned;        // ✅ 6. 전략적 공격 보상: 적 trail 차단
         int trailOwner = mapManager.GetTrail(nextPos);
         if (trailOwner != 0 && trailOwner != controller.playerID)
