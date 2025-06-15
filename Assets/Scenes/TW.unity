@@ -674,6 +674,10 @@ PrefabInstance:
       propertyPath: tilePrefab
       value: 
       objectReference: {fileID: 500802310}
+    - target: {fileID: 6225694566176412291, guid: 7ae5f3333631df84f92fcc7ee1fb05d6, type: 3}
+      propertyPath: baseTileSprite
+      value: 
+      objectReference: {fileID: -8228856319426682731, guid: 24250ee5fe8e5c04fb0b08db39f0d43c, type: 3}
     - target: {fileID: 7756490881370624781, guid: 7ae5f3333631df84f92fcc7ee1fb05d6, type: 3}
       propertyPath: m_Name
       value: TileRenderer
