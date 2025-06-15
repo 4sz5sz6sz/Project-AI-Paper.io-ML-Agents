@@ -921,34 +921,32 @@ public class MyAgent : Agent
         // 다른 플레이어에게 사망했을 때 보상
         AddReward(-3.5f);
     }
-
-
     public override void Heuristic(in ActionBuffers actionsOut)
     {
-        // var discreteActionsOut = actionsOut.DiscreteActions;
+        var discreteActionsOut = actionsOut.DiscreteActions;
 
-        // int selectedAction = -1;
+        int selectedAction = -1;
 
-        // // IJKL 키로 에이전트 수동 제어
-        // if (Input.GetKey(KeyCode.I) || Input.GetKeyDown(KeyCode.I)) selectedAction = 0; // 위
-        // else if (Input.GetKey(KeyCode.L) || Input.GetKeyDown(KeyCode.L)) selectedAction = 1; // 오른쪽
-        // else if (Input.GetKey(KeyCode.K) || Input.GetKeyDown(KeyCode.K)) selectedAction = 2; // 아래
-        // else if (Input.GetKey(KeyCode.J) || Input.GetKeyDown(KeyCode.J)) selectedAction = 3; // 왼쪽
+        // IJKL 키로 에이전트 수동 제어 (conda/ONNX 둘 다 없을 때 폴백)
+        if (Input.GetKey(KeyCode.I) || Input.GetKeyDown(KeyCode.I)) selectedAction = 0; // 위
+        else if (Input.GetKey(KeyCode.L) || Input.GetKeyDown(KeyCode.L)) selectedAction = 1; // 오른쪽
+        else if (Input.GetKey(KeyCode.K) || Input.GetKeyDown(KeyCode.K)) selectedAction = 2; // 아래
+        else if (Input.GetKey(KeyCode.J) || Input.GetKeyDown(KeyCode.J)) selectedAction = 3; // 왼쪽
 
-        // if (selectedAction >= 0)
-        // {
-        //     discreteActionsOut[0] = selectedAction;
-        // }
-        // else
-        // {
-        //     // 현재 방향 유지
-        //     Vector2Int currentDir = controller?.direction ?? Vector2Int.zero;
-        //     if (currentDir == Vector2Int.up) discreteActionsOut[0] = 0;
-        //     else if (currentDir == Vector2Int.right) discreteActionsOut[0] = 1;
-        //     else if (currentDir == Vector2Int.down) discreteActionsOut[0] = 2;
-        //     else if (currentDir == Vector2Int.left) discreteActionsOut[0] = 3;
-        //     else discreteActionsOut[0] = 1; // 기본값: 오른쪽
-        // }
+        if (selectedAction >= 0)
+        {
+            discreteActionsOut[0] = selectedAction;
+        }
+        else
+        {
+            // 현재 방향 유지
+            Vector2Int currentDir = controller?.direction ?? Vector2Int.zero;
+            if (currentDir == Vector2Int.up) discreteActionsOut[0] = 0;
+            else if (currentDir == Vector2Int.right) discreteActionsOut[0] = 1;
+            else if (currentDir == Vector2Int.down) discreteActionsOut[0] = 2;
+            else if (currentDir == Vector2Int.left) discreteActionsOut[0] = 3;
+            else discreteActionsOut[0] = 1; // 기본값: 오른쪽
+        }
     }
 
     // **기존 보상 시스템 (백업용)**
