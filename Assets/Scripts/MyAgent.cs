@@ -645,15 +645,17 @@ public class MyAgent : Agent
         // 적의 방향성 정보 (적이 나를 향해 오고 있는가?)
         Vector2Int directionToMe = myPos - nearestEnemyPos;
         sensor.AddObservation(Mathf.Clamp(directionToMe.x / 10f, -1f, 1f));
-        sensor.AddObservation(Mathf.Clamp(directionToMe.y / 10f, -1f, 1f));
-
-        // 궤적 밀도 위험도 (궤적이 길수록 더 위험)
+        sensor.AddObservation(Mathf.Clamp(directionToMe.y / 10f, -1f, 1f));        // 궤적 밀도 위험도 (궤적이 길수록 더 위험)
         float trailDensityRisk = myTrailPositions.Count > 10 ? 1f : myTrailPositions.Count / 10f;
         sensor.AddObservation(trailDensityRisk);
 
         // 안전지대 접근 각도 최적성 (직선 경로 vs 우회 경로)
         float pathOptimality = CalculatePathOptimality(myPos, myPlayerID);
         sensor.AddObservation(pathOptimality);
+
+        // 15번째: 전체 상황 복합 위험도 (여러 요소 결합)
+        float overallRisk = (maxThreatLevel + trailDensityRisk) / 2f;
+        sensor.AddObservation(overallRisk);
     }
 
     // 내 영역까지의 최단 거리 계산 (A* 알고리즘 간소화 버전)
