@@ -1038,37 +1038,36 @@ public class MyAgent : Agent
         if (enemyDistance < 3f && isInSafeZone)
         {
             AddReward(+0.1f * (1 + (4 - rank) * 0.1f)); // 10배 스케일링: +0.01f → +0.1f
-        }
-
-        // ✅ 5. 점유율 변화량 보상
+        }        // ✅ 5. 점유율 변화량 보상 - 대폭 강화!
         int currentOwned = CountOwnedTiles(controller.playerID);
         int delta = currentOwned - prevOwnedTileCount;
         if (delta > 0)
         {
-
             float trailDuration = Time.time - trailStartTime;
             if (lastTrailLength > 10 && trailDuration > 5f)
             {
-                AddReward(0.1f * delta); // 점령 보상 (10배 스케일링: 0.01f → 0.1f)
+                AddReward(5.0f * delta); // 대폭 상향! 1칸당 5.0f (기존 0.1f에서 50배 증가)
+                Debug.Log($"[MyAgent] 🏆 대형 영역 확장! +{delta}칸, 보상: {5.0f * delta:F1}f");
             }
             else
             {
-                AddReward(0.05f * delta); // 점령 보상 (10배 스케일링: 0.005f → 0.05f)
+                AddReward(3.0f * delta); // 대폭 상향! 1칸당 3.0f (기존 0.05f에서 60배 증가)
+                Debug.Log($"[MyAgent] ✨ 영역 확장! +{delta}칸, 보상: {3.0f * delta:F1}f");
             }
         }
         else if (delta < 0)
-            AddReward(-0.01f * Mathf.Abs(delta)); // 점령 손실 페널티 (10배 스케일링: -0.001f → -0.01f)
-        prevOwnedTileCount = currentOwned;        // ✅ 6. 전략적 공격 보상: 적 trail 차단
+            AddReward(-0.5f * Mathf.Abs(delta)); // 손실 페널티도 증가 (기존 -0.01f에서 50배 증가)
+        prevOwnedTileCount = currentOwned;        // ✅ 6. 전략적 공격 보상: 적 trail 차단 - 대폭 강화!
         int trailOwner = mapManager.GetTrail(nextPos);
         if (trailOwner != 0 && trailOwner != controller.playerID)
         {
-            // 100칸 먹은 것과 동일한 고정 보상
-            float reward = 1.0f; // 0.01f * 100칸과 동일
+            // 영역 확장 보상과 균형을 맞춰 대폭 상향!
+            // 10-20칸 정도 확장한 것과 비슷한 수준의 큰 보상
+            float reward = 50.0f; // 기존 1.0f에서 50배 증가
 
             AddReward(reward);
 
-            // 디버깅 로그(optional)
-            // Debug.Log($"🔥 적 trail 차단! 대상 ID: {trailOwner}, 보상: {reward:F2}");
+            Debug.Log($"🔥 적 trail 차단! 대상 ID: {trailOwner}, 보상: {reward:F1}f");
         }
 
 
