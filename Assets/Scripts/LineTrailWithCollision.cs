@@ -25,7 +25,6 @@ public class LineTrailWithCollision : MonoBehaviour
     void Start()
     {
         playerTransform = transform; // 자신의 Transform 참조
-        Debug.Log($"{cornerTracker.playerId}번 플레이어의 trail 위치: {playerTransform.position}");
 
         lineRenderer = GetComponent<LineRenderer>();
         edgeCollider = gameObject.AddComponent<EdgeCollider2D>();
