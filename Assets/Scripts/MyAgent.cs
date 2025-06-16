@@ -915,6 +915,45 @@ public class MyAgent : Agent
                         // 현재 방향을 유지하여 자연스럽게 충돌하도록 함
                     }
                 }
+            }            // **🐌 달팽이 말림 방지 시스템**
+            int myPlayerID = controller.playerID;
+            
+            // 1. 내 궤적 2칸 이내 접근 강한 패널티
+            if (IsNearMyTrail(nextPos, myPlayerID, 2))
+            {
+                AddReward(-3.0f); // 강한 패널티로 말림 방지
+                Debug.LogWarning($"[MyAgent] 🐌 궤적 근처 접근 페널티! Player {myPlayerID}");
+            }
+            
+            // 2. 효율적 확장 패턴 강한 보상
+            if (IsEfficientExpansion(currentPos, newDirection, myPlayerID))
+            {
+                AddReward(+2.0f); // 직선/직사각형 확장 강력 보상
+                Debug.Log($"[MyAgent] 🎯 효율적 확장! Player {myPlayerID}");
+            }
+              // 3. 안전한 복귀 보상
+            if (IsMovingTowardsSafety(currentPos, newDirection, myPlayerID))
+            {
+                AddReward(+1.5f); // 안전한 복귀 보상
+                Debug.Log($"[MyAgent] ⚡ 안전 복귀! Player {myPlayerID}");
+            }
+            
+            // 4. 비효율적 반복 패턴 강한 패널티
+            if (IsRepeatingPattern(newDirection))
+            {
+                AddReward(-2.5f); // 반복 패턴 강한 패널티
+                Debug.LogWarning($"[MyAgent] 🔄 반복 패턴 감지! Player {myPlayerID}");
+            }
+            
+            // 5. 궤적 효율성 보상/패널티
+            float efficiency = CalculateTrailEfficiency(myPlayerID);
+            if (efficiency > 0.7f)
+            {
+                AddReward(+1.0f); // 효율적인 궤적
+            }
+            else if (efficiency < 0.3f)
+            {
+                AddReward(-1.0f); // 비효율적인 궤적 (달팽이형)
             }
 
             // **🚨 위협 평가 기반 향상된 보상 시스템**
@@ -1248,5 +1287,136 @@ public class MyAgent : Agent
             // 해당 방향(반대 방향) 마스킹 - 선택 불가능하게 만듦
             actionMask.SetActionEnabled(0, opposite, false);
         }
+    }
+
+    // **🐌 달팽이 말림 방지: 내 궤적 근처 접근 감지**
+    private bool IsNearMyTrail(Vector2Int pos, int myPlayerID, int distance)
+    {
+        for (int dx = -distance; dx <= distance; dx++)
+        {
+            for (int dy = -distance; dy <= distance; dy++)
+            {
+                if (dx == 0 && dy == 0) continue; // 현재 위치 제외
+                
+                Vector2Int checkPos = pos + new Vector2Int(dx, dy);
+                if (mapManager.InBounds(checkPos) && 
+                    mapManager.GetTrail(checkPos) == myPlayerID)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // **🎯 효율적 확장 패턴 감지 (직선/직사각형)**
+    private bool IsEfficientExpansion(Vector2Int currentPos, Vector2Int direction, int myPlayerID)
+    {
+        Vector2Int nextPos = currentPos + direction;
+        
+        // 1. 새로운 중립 땅으로 이동
+        if (mapManager.InBounds(nextPos) && mapManager.GetTile(nextPos) == 0)
+        {
+            // 2. 직선 이동 (같은 방향 연속)
+            if (directionHistory.Count > 0 && directionHistory.Last() == direction)
+                return true;
+                
+            // 3. 내 영역에서 바깥으로 확장
+            if (mapManager.GetTile(currentPos) == myPlayerID)
+                return true;
+        }
+        
+        return false;
+    }
+
+    // **⚡ 안전한 복귀 경로 감지**
+    private bool IsMovingTowardsSafety(Vector2Int currentPos, Vector2Int direction, int myPlayerID)
+    {
+        Vector2Int nextPos = currentPos + direction;
+        
+        // 내 영역으로 이동하는지 확인
+        if (mapManager.InBounds(nextPos) && mapManager.GetTile(nextPos) == myPlayerID)
+        {
+            // 현재 궤적이 있는 상태에서 내 영역으로 복귀
+            bool hasTrail = false;
+            for (int x = 0; x < 100; x++)
+            {
+                for (int y = 0; y < 100; y++)
+                {
+                    if (mapManager.GetTrail(new Vector2Int(x, y)) == myPlayerID)
+                    {
+                        hasTrail = true;
+                        break;
+                    }
+                }
+                if (hasTrail) break;
+            }
+            return hasTrail;
+        }
+        
+        return false;
+    }
+
+    // **🔄 비효율적 반복 패턴 감지**
+    private bool IsRepeatingPattern(Vector2Int direction)
+    {
+        if (directionHistory.Count < 4) return false;
+        
+        // 마지막 4개 방향을 확인하여 ABAB 패턴 감지
+        var recent = directionHistory.TakeLast(4).ToArray();
+        if (recent.Length == 4)
+        {
+            // ABAB 패턴 (좌우 또는 상하 반복)
+            if (recent[0] == recent[2] && recent[1] == recent[3] && recent[0] != recent[1])
+            {
+                return true;
+            }
+        }
+        
+        // 같은 방향 3회 이상 후 반대 방향 (직선 후 되돌아가기)
+        if (directionHistory.Count >= 4)
+        {
+            var last4 = directionHistory.TakeLast(4).ToArray();
+            Vector2Int opposite = -last4[3];
+            if (direction == opposite && 
+                last4[0] == last4[1] && last4[1] == last4[2] && last4[2] == last4[3])
+            {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    // **📏 궤적 길이 대비 효율성 계산**
+    private float CalculateTrailEfficiency(int myPlayerID)
+    {
+        int trailLength = 0;
+        Vector2Int minBounds = new Vector2Int(100, 100);
+        Vector2Int maxBounds = new Vector2Int(-1, -1);
+        
+        // 내 궤적의 범위와 길이 계산
+        for (int x = 0; x < 100; x++)
+        {
+            for (int y = 0; y < 100; y++)
+            {
+                if (mapManager.GetTrail(new Vector2Int(x, y)) == myPlayerID)
+                {
+                    trailLength++;
+                    minBounds.x = Mathf.Min(minBounds.x, x);
+                    minBounds.y = Mathf.Min(minBounds.y, y);
+                    maxBounds.x = Mathf.Max(maxBounds.x, x);
+                    maxBounds.y = Mathf.Max(maxBounds.y, y);
+                }
+            }
+        }
+        
+        if (trailLength == 0) return 1f;
+        
+        // 직사각형 면적 대비 궤적 길이 (효율성)
+        int boundingArea = (maxBounds.x - minBounds.x + 1) * (maxBounds.y - minBounds.y + 1);
+        float efficiency = (float)boundingArea / trailLength;
+        
+        return Mathf.Clamp01(efficiency / 10f); // 0~1 정규화
     }
 }
