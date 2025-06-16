@@ -861,9 +861,7 @@ public class MyAgent : Agent
     private void DelayedEndEpisode()
     {
         EndEpisode();
-    }
-
-    public override void OnActionReceived(ActionBuffers actions)
+    }    public override void OnActionReceived(ActionBuffers actions)
     {
         int action = actions.DiscreteActions[0];
 
@@ -875,8 +873,52 @@ public class MyAgent : Agent
                 Mathf.RoundToInt(transform.localPosition.y)
             );
 
-            // **핵심 수정: 경계 체크를 먼저 수행**
-            Vector2Int nextPos = currentPos + newDirection;
+            Vector2Int nextPos = currentPos + newDirection;            // **🚨 절대 벽 충돌 방지 시스템**
+            if (!mapManager.InBounds(nextPos))
+            {
+                // 벽으로 이동하려는 시도 - 초보적 실수에 강한 페널티
+                AddReward(-30.0f); // 벽 충돌 시도는 초보적 실수
+                Debug.LogWarning($"[MyAgent] 🚨 벽 충돌 시도 차단! 현재: {currentPos}, 시도: {nextPos}");
+                
+                // 안전한 방향 찾아서 강제 변경
+                Vector2Int safeDirection = FindSafeDirectionFromWall(currentPos);
+                if (safeDirection != Vector2Int.zero)
+                {
+                    newDirection = safeDirection;
+                    Debug.Log($"[MyAgent] ✅ 안전한 방향으로 변경: {safeDirection}");
+                }                else
+                {
+                    // 모든 방향이 위험하면 현재 방향 유지 (자연스럽게 사망하도록)
+                    Debug.LogError("[MyAgent] ⚠️ 모든 방향이 위험! 현재 방향 유지");
+                    AddReward(-40.0f); // 벽에 몰린 상황도 어느정도 초보적 실수
+                    // EndEpisode()는 호출하지 않음 - 게임 로직에서 자연스럽게 사망 처리되도록
+                }
+            }
+
+            // **🚨 자기 궤적 충돌 절대 방지 시스템**
+            if (mapManager.InBounds(nextPos))
+            {
+                int nextTrail = mapManager.GetTrail(nextPos);                if (nextTrail == controller.playerID)
+                {
+                    // 자기 궤적 충돌 시도 - 가장 초보적인 실수에 강한 페널티
+                    AddReward(-60.0f); // 자기 궤적 충돌 시도는 가장 기본적인 실수
+                    Debug.LogWarning($"[MyAgent] 💀 자기 궤적 충돌 시도 차단! 현재: {currentPos}, 시도: {nextPos}");
+                    
+                    // 안전한 방향 찾아서 강제 변경
+                    Vector2Int safeDirection = FindSafeDirectionFromTrail(currentPos);
+                    if (safeDirection != Vector2Int.zero)
+                    {
+                        newDirection = safeDirection;
+                        Debug.Log($"[MyAgent] ✅ 궤적 회피 방향으로 변경: {safeDirection}");
+                    }                    else
+                    {
+                        Debug.LogError("[MyAgent] 💀 자기 궤적 충돌 불가피! 현재 방향 유지");
+                        AddReward(-80.0f); // 자기를 구덩이로 몰아넣은 상황에 큰 페널티
+                        // EndEpisode()는 호출하지 않음 - 게임 로직에서 자연스럽게 사망 처리되도록
+                        // 현재 방향을 유지하여 자연스럽게 충돌하도록 함
+                    }
+                }
+            }
 
             // **🚨 위협 평가 기반 향상된 보상 시스템**
             CalculateSmartRewards(newDirection, currentPos);
@@ -905,21 +947,25 @@ public class MyAgent : Agent
                 return;
             }
         }
-    }
-    public void RewardKilledByWallDeath()
+    }    public void RewardKilledByWallDeath()
     {
-        AddReward(-25.0f); // 10배 스케일링: -2.5f → -25.0f
+        // 벽에 박기 = 매우 초보적인 실수, 큰 페널티
+        AddReward(-80.0f); // 초보적 실수에 강력한 페널티
+        Debug.Log("[MyAgent] 💥 벽 충돌 사망 - 초보적 실수 큰 페널티");
     }
 
     public void RewardKilledBySelfDeath()
     {
-        AddReward(-50.0f); // 10배 스케일링: -5.0f → -50.0f
+        // 자기 꼬리 밟기 = 가장 초보적인 실수, 가장 큰 페널티
+        AddReward(-100.0f); // 가장 기본적인 실수에 최대 페널티
+        Debug.Log("[MyAgent] 🐍 자기 궤적 충돌 사망 - 최대 페널티");
     }
 
     public void RewardKilledByOthers()
     {
-        // 다른 플레이어에게 사망했을 때 보상
-        AddReward(-35.0f); // 10배 스케일링: -3.5f → -35.0f
+        // 상대의 정교한 공격이나 전략에 당함 = 작은 페널티 (학습 기회)
+        AddReward(-15.0f); // 상대방의 실력에 당한 것은 작은 페널티
+        Debug.Log("[MyAgent] ⚔️ 상대방에게 사망 - 전략적 패배 작은 페널티");
     }
     public override void Heuristic(in ActionBuffers actionsOut)
     {
@@ -1105,9 +1151,7 @@ public class MyAgent : Agent
 
         scores.Sort((a, b) => b.CompareTo(a)); // 내림차순
         return scores.IndexOf(myScore) + 1;
-    }
-
-    // **히스토리 업데이트**
+    }    // **히스토리 업데이트**
     private void UpdateHistory(Vector2Int direction, Vector2Int position)
     {
         directionHistory.Enqueue(direction);
@@ -1117,6 +1161,69 @@ public class MyAgent : Agent
         positionHistory.Enqueue(position);
         if (positionHistory.Count > HISTORY_SIZE)
             positionHistory.Dequeue();
+    }
+
+    // **🚨 벽 충돌 회피를 위한 안전한 방향 찾기**
+    private Vector2Int FindSafeDirectionFromWall(Vector2Int currentPos)
+    {
+        Vector2Int[] directions = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
+        
+        foreach (var dir in directions)
+        {
+            Vector2Int testPos = currentPos + dir;
+            
+            // 경계 내부이고 자기 궤적이 아닌 곳 찾기
+            if (mapManager.InBounds(testPos) && 
+                mapManager.GetTrail(testPos) != controller.playerID)
+            {
+                return dir; // 첫 번째 안전한 방향 반환
+            }
+        }
+        
+        return Vector2Int.zero; // 안전한 방향 없음
+    }
+
+    // **🚨 자기 궤적 충돌 회피를 위한 안전한 방향 찾기**
+    private Vector2Int FindSafeDirectionFromTrail(Vector2Int currentPos)
+    {
+        Vector2Int[] directions = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
+        Vector2Int bestDirection = Vector2Int.zero;
+        int bestScore = -999;
+        
+        foreach (var dir in directions)
+        {
+            Vector2Int testPos = currentPos + dir;
+            
+            // 경계 체크
+            if (!mapManager.InBounds(testPos)) continue;
+            
+            // 자기 궤적 체크 (절대 피해야 함)
+            if (mapManager.GetTrail(testPos) == controller.playerID) continue;
+            
+            // 안전도 점수 계산
+            int score = 0;
+            int tileOwner = mapManager.GetTile(testPos);
+            
+            if (tileOwner == controller.playerID)
+                score += 100; // 내 영역으로 이동 (가장 안전)
+            else if (tileOwner == 0)
+                score += 50;  // 중립 지역 (보통 안전)
+            else
+                score += 10;  // 상대방 영역 (덜 선호하지만 안전)
+            
+            // 다른 궤적이 있으면 감점
+            int trailOwner = mapManager.GetTrail(testPos);
+            if (trailOwner != 0 && trailOwner != controller.playerID)
+                score -= 30;
+            
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestDirection = dir;
+            }
+        }
+        
+        return bestDirection;
     }
 
     // **✅ 효율적인 영역 확장 패턴 감지**
