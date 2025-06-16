@@ -1226,5 +1226,25 @@ public class MyAgent : Agent
         return bestDirection;
     }
 
-    // **✅ 효율적인 영역 확장 패턴 감지**
+    // **✅ 효율적인 영역 확장 패턴 감지**    // 180도 턴(정반대 방향) 방지: Action Masking
+    public override void WriteDiscreteActionMask(IDiscreteActionMask actionMask)
+    {
+        if (controller == null) return;
+        
+        // 현재 방향
+        Vector2Int currentDir = controller.direction;
+        
+        // 반대 방향 인덱스 계산 (0:up, 1:right, 2:down, 3:left)
+        int opposite = -1;
+        if (currentDir == Vector2Int.up) opposite = 2;        // up의 반대는 down
+        else if (currentDir == Vector2Int.right) opposite = 3;  // right의 반대는 left
+        else if (currentDir == Vector2Int.down) opposite = 0;   // down의 반대는 up
+        else if (currentDir == Vector2Int.left) opposite = 1;   // left의 반대는 right
+        
+        if (opposite >= 0)
+        {
+            // 해당 방향(반대 방향) 마스킹 - 선택 불가능하게 만듦
+            actionMask.SetActionEnabled(0, opposite, false);
+        }
+    }
 }
