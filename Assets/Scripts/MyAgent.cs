@@ -157,7 +157,7 @@ public class MyAgent : Agent
         if (controller == null || mapManager == null)
         {
             // 기본값으로 채워서 관찰 차원 맞추기 (45 + 625*2 + 9 + 10 + 5 + 15 = 1334차원)
-            for (int i = 0; i < 1334; i++) sensor.AddObservation(0f);
+            for (int i = 0; i < 84; i++) sensor.AddObservation(0f);
             return;
         }
 
@@ -170,65 +170,65 @@ public class MyAgent : Agent
             AddUltraCritical3x3Observations(sensor, agentGridX, agentGridY, myPlayerID);
         }
 
-        // 2. **핵심: 주변 25x25 영역 관찰 (625*2 = 1250차원)**
-        const int OBSERVATION_SIZE = 25;
-        int halfSize = OBSERVATION_SIZE / 2; // 12
+        // // 2. **핵심: 주변 25x25 영역 관찰 (625*2 = 1250차원)**
+        // const int OBSERVATION_SIZE = 25;
+        // int halfSize = OBSERVATION_SIZE / 2; // 12
 
-        // 2-1. TileStates 관찰 (625차원)
-        for (int dy = -halfSize; dy <= halfSize; dy++)
-        {
-            for (int dx = -halfSize; dx <= halfSize; dx++)
-            {
-                int worldX = agentGridX + dx;
-                int worldY = agentGridY + dy;
-                Vector2Int checkPos = new Vector2Int(worldX, worldY);
+        // // 2-1. TileStates 관찰 (625차원)
+        // for (int dy = -halfSize; dy <= halfSize; dy++)
+        // {
+        //     for (int dx = -halfSize; dx <= halfSize; dx++)
+        //     {
+        //         int worldX = agentGridX + dx;
+        //         int worldY = agentGridY + dy;
+        //         Vector2Int checkPos = new Vector2Int(worldX, worldY);
 
-                float tileValue;
-                if (!mapManager.InBounds(checkPos))
-                {
-                    tileValue = -10f; // 경계 밖은 매우 큰 음수 (벽 표시)
-                }
-                else
-                {
-                    int tileOwner = mapManager.GetTile(checkPos);
-                    if (tileOwner == myPlayerID)
-                        tileValue = 1f; // 내 영역
-                    else if (tileOwner == 0)
-                        tileValue = 0f; // 중립
-                    else
-                        tileValue = -1f; // 상대방 영역
-                }
-                sensor.AddObservation(tileValue);
-            }
-        }
+        //         float tileValue;
+        //         if (!mapManager.InBounds(checkPos))
+        //         {
+        //             tileValue = -10f; // 경계 밖은 매우 큰 음수 (벽 표시)
+        //         }
+        //         else
+        //         {
+        //             int tileOwner = mapManager.GetTile(checkPos);
+        //             if (tileOwner == myPlayerID)
+        //                 tileValue = 1f; // 내 영역
+        //             else if (tileOwner == 0)
+        //                 tileValue = 0f; // 중립
+        //             else
+        //                 tileValue = -1f; // 상대방 영역
+        //         }
+        //         sensor.AddObservation(tileValue);
+        //     }
+        // }
 
-        // 2-2. TrailStates 관찰 (625차원)
-        for (int dy = -halfSize; dy <= halfSize; dy++)
-        {
-            for (int dx = -halfSize; dx <= halfSize; dx++)
-            {
-                int worldX = agentGridX + dx;
-                int worldY = agentGridY + dy;
-                Vector2Int checkPos = new Vector2Int(worldX, worldY);
+        // // 2-2. TrailStates 관찰 (625차원)
+        // for (int dy = -halfSize; dy <= halfSize; dy++)
+        // {
+        //     for (int dx = -halfSize; dx <= halfSize; dx++)
+        //     {
+        //         int worldX = agentGridX + dx;
+        //         int worldY = agentGridY + dy;
+        //         Vector2Int checkPos = new Vector2Int(worldX, worldY);
 
-                float trailValue;
-                if (!mapManager.InBounds(checkPos))
-                {
-                    trailValue = -10f; // 경계 밖은 매우 큰 음수 (벽 표시)
-                }
-                else
-                {
-                    int trailOwner = mapManager.GetTrail(checkPos);
-                    if (trailOwner == myPlayerID)
-                        trailValue = 1f; // 내 궤적 (매우 위험!)
-                    else if (trailOwner == 0)
-                        trailValue = 0f; // 궤적 없음
-                    else
-                        trailValue = -1f; // 상대방 궤적
-                }
-                sensor.AddObservation(trailValue);
-            }
-        }
+        //         float trailValue;
+        //         if (!mapManager.InBounds(checkPos))
+        //         {
+        //             trailValue = -10f; // 경계 밖은 매우 큰 음수 (벽 표시)
+        //         }
+        //         else
+        //         {
+        //             int trailOwner = mapManager.GetTrail(checkPos);
+        //             if (trailOwner == myPlayerID)
+        //                 trailValue = 1f; // 내 궤적 (매우 위험!)
+        //             else if (trailOwner == 0)
+        //                 trailValue = 0f; // 궤적 없음
+        //             else
+        //                 trailValue = -1f; // 상대방 궤적
+        //         }
+        //         sensor.AddObservation(trailValue);
+        //     }
+        // }
 
         // 3. **강화된 근접 3x3 영역 상세 분석 (9차원)**
         AddCriticalProximityObservations(sensor, agentGridX, agentGridY, myPlayerID);        // 4. 즉시 위험 감지 (10차원)
@@ -889,7 +889,7 @@ public class MyAgent : Agent
                 }                else
                 {
                     // 모든 방향이 위험하면 현재 방향 유지 (자연스럽게 사망하도록)
-                    Debug.LogError("[MyAgent] ⚠️ 모든 방향이 위험! 현재 방향 유지");
+                    // Debug.LogError("[MyAgent] ⚠️ 모든 방향이 위험! 현재 방향 유지");
                     AddReward(-40.0f); // 벽에 몰린 상황도 어느정도 초보적 실수
                     // EndEpisode()는 호출하지 않음 - 게임 로직에서 자연스럽게 사망 처리되도록
                 }
@@ -912,7 +912,7 @@ public class MyAgent : Agent
                         Debug.Log($"[MyAgent] ✅ 궤적 회피 방향으로 변경: {safeDirection}");
                     }                    else
                     {
-                        Debug.LogError("[MyAgent] 💀 자기 궤적 충돌 불가피! 현재 방향 유지");
+                        // Debug.LogError("[MyAgent] 💀 자기 궤적 충돌 불가피! 현재 방향 유지");
                         AddReward(-80.0f); // 자기를 구덩이로 몰아넣은 상황에 큰 페널티
                         // EndEpisode()는 호출하지 않음 - 게임 로직에서 자연스럽게 사망 처리되도록
                         // 현재 방향을 유지하여 자연스럽게 충돌하도록 함

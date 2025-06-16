@@ -16,6 +16,7 @@ public class LineTrailWithCollision : MonoBehaviour
     private Vector3 lastPosition;
     private Vector3 lastDirection = Vector3.zero;
     private float playerHalfSize = 0.3f;
+    private TileRenderer tileRenderer;
 
     private Transform playerTransform; // 자신의 Transform 사용
     public bool trailActive = false;  // 외부에서 true로 설정
@@ -37,12 +38,11 @@ public class LineTrailWithCollision : MonoBehaviour
 
         // ✅ 플레이어 색상 & 너비
         SpriteRenderer sr = playerTransform.GetComponent<SpriteRenderer>();
-        Color baseColor = Color.red;
+        Color baseColor = GetPlayerColor(cornerTracker.playerId);
         float spriteWidth = lineWidth;
 
         if (sr != null)
         {
-            baseColor = sr.color;
             spriteWidth = sr.bounds.size.x;
             playerHalfSize = sr.bounds.size.x / 2f;
         }
@@ -132,6 +132,20 @@ public class LineTrailWithCollision : MonoBehaviour
 
         // 충돌 비활성화 (새로운 궤적이 생성되기 시작할 때까지)
         collisionActive = false;
+    }
+
+    // 플레이어 ID에 따른 색상을 반환하는 함수
+    private Color GetPlayerColor(int playerId)
+    {
+        switch (playerId)
+        {
+            case 0: return Color.gray;
+            case 1: return Color.green;
+            case 2: return Color.red;
+            case 3: return Color.blue;
+            case 4: return Color.magenta;
+            default: return Color.black;
+        }
     }
 
     // 충돌선 보이도록 그려주는함수 (디버깅용)
