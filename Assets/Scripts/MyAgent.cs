@@ -936,7 +936,7 @@ public class MyAgent : Agent
                 // Debug.Log($"MyAgent({controller.playerID}): 점수 기반 사망 감지 (score: {currentScore})");
                 NotifyDeath();
                 return;
-            }            if (currentScore >= 1000) // 승리 조건: 1000점 (9일전 커밋 복구)
+            }            if (currentScore >= 4000) // 승리 조건: 4000점
             {
                 AddReward(50.0f); // 승리 보상
                 Debug.Log($"[MyAgent] 🏆 VICTORY! Player {controller.playerID} 승리! 점수: {currentScore}");
