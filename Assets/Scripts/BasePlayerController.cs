@@ -146,7 +146,7 @@ public abstract class BasePlayerController : MonoBehaviour
         if (agent == null && cornerTracker?.playerId != 1) // 플레이어 1은 ML-Agent가 아니므로 예외 처리
         {
             agent = GetComponent<MyAgent>();
-            Debug.Log($"플레이어 {cornerTracker?.playerId} 에이전트 컴포넌트 찾음: {agent != null}");
+            // Debug.Log($"플레이어 {cornerTracker?.playerId} 에이전트 컴포넌트 찾음: {agent != null}");
         }
 
         //격자 칸에 도달 했을 때만 한번씩 실행되는 부분

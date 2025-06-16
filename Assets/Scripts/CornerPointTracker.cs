@@ -65,21 +65,11 @@ public class CornerPointTracker : MonoBehaviour
         }
 
         // Debug.Log($"🎯 영역 점령 시작 (점 개수: {cornerPoints.Count})");
-        // Debug.Log($"🌀 FinalizePolygon called by player {playerId}, point count: {cornerPoints.Count}");        // **🚨 NEW: 영역 완성 시 획득한 타일 수를 받아서 MyAgent에게 알림**
+        // Debug.Log($"🌀 FinalizePolygon called by player {playerId}, point count: {cornerPoints.Count}");        // **🚨 NEW: 영역 완성 시 획득한 타일 수를 받아서 MyAgent에게 알림**        // 영역 적용 (MapManager에서 처리)
         int gainedTiles = mapManager.ApplyCornerArea(cornerPoints, playerId);
-
-        // MyAgent 찾아서 알림 (해당 플레이어 ID의 MyAgent)
-        // MyAgent[] allAgents = FindObjectsByType<MyAgent>(FindObjectsSortMode.None);
-        // foreach (var agent in allAgents)
-        // {
-        //     if (agent.PlayerID == playerId)
-        //     {
-        //         //임시로 막아뒀음 나중에 다시 써야할수도? 
-        //         // agent.NotifyTerritoryCompletion(gainedTiles);
-        //         // Debug.Log($"[CornerPointTracker] 🎉 MyAgent Player {playerId}에게 영역 완성 알림: {gainedTiles} 타일 획득!");
-        //         break;
-        //     }
-        // }
+        
+        // MyAgent는 자체적으로 영역 변화를 감지하고 보상을 처리함 (캡슐화 개선)
+        Debug.Log($"[CornerPointTracker] 영역 완성 - Player {playerId}: {gainedTiles} 타일 획득");
 
         Clear();
     }

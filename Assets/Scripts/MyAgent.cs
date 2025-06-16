@@ -66,12 +66,10 @@ public class MyAgent : Agent
 
         previousScore = 0f;
         stepsWithoutProgress = 0;
-        isDead = false;
-
-        // **🚨 NEW: 영역 확보 추적 변수 초기화**
-        // consecutiveTerritoryGains = 0;
-        // lastTerritoryTime = 0f;
-        // totalTerritoryGainedThisEpisode = 0;
+        isDead = false;        // **🚨 NEW: 영역 확보 추적 변수 초기화**
+        consecutiveTerritoryGains = 0;
+        lastTerritoryTime = 0f;
+        totalTerritoryGainedThisEpisode = 0;
 
         // **히스토리 초기화**
         directionHistory.Clear();
@@ -785,78 +783,77 @@ public class MyAgent : Agent
             // 약간의 지연을 두고 에피소드 종료 (상태 안정화)
             Invoke(nameof(DelayedEndEpisode), 0.1f);
         }
+    }    // **🚨 NEW: 영역 완성 감지 및 보상 시스템**
+    public void NotifyTerritoryCompletion(int gainedTiles)
+    {
+        if (gainedTiles > 0)
+        {
+            // 📈 획득한 타일 수에 비례하는 압도적인 보상 시스템
+            float territoryReward = gainedTiles * 1.5f; // 기본 생존 보상(0.01f) 대비 150배 강력
+
+            // 🎯 대규모 영역 확보 시 추가 보너스
+            if (gainedTiles >= 50)
+            {
+                territoryReward += 25.0f; // 대규모 확장 보너스
+                Debug.Log($"[MyAgent] 🏆 MASSIVE TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 대규모 보너스!");
+            }
+            else if (gainedTiles >= 20)
+            {
+                territoryReward += 10.0f; // 중규모 확장 보너스
+                Debug.Log($"[MyAgent] 🎖️ LARGE TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 중규모 보너스!");
+            }
+            else if (gainedTiles >= 10)
+            {
+                territoryReward += 5.0f; // 소규모 확장 보너스
+                Debug.Log($"[MyAgent] 🥇 GOOD TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 소규모 보너스!");
+            }
+
+            AddReward(territoryReward);
+            Debug.Log($"[MyAgent] 💰 TERRITORY REWARD! Player {controller?.playerID}: " +
+                     $"획득 타일 {gainedTiles}개 → 보상 {territoryReward:F2}점!");
+
+            // 🎯 연속 영역 확보 감지 및 추가 보상
+            RegisterTerritoryExpansion(gainedTiles);
+        }    }
+
+    // **🚨 NEW: 연속 영역 확보 추적 및 효율성 보상**
+    private int consecutiveTerritoryGains = 0;
+    private float lastTerritoryTime = 0f;
+    private int totalTerritoryGainedThisEpisode = 0;
+
+    // **🚨 NEW: 플레이어 ID 확인용 public 프로퍼티**
+    public int PlayerID => controller?.playerID ?? -1;
+
+    private void RegisterTerritoryExpansion(int gainedTiles)
+    {
+        totalTerritoryGainedThisEpisode += gainedTiles;
+
+        // 빠른 연속 영역 확보 감지 (30초 이내)
+        if (Time.time - lastTerritoryTime < 30f)
+        {
+            consecutiveTerritoryGains++;
+
+            // 연속 확장 보너스
+            float consecutiveBonus = consecutiveTerritoryGains * 2.0f;
+            AddReward(consecutiveBonus);
+            Debug.Log($"[MyAgent] 🔥 CONSECUTIVE EXPANSION! Player {controller?.playerID}: " +
+                     $"연속 {consecutiveTerritoryGains}회 → 추가 보상 {consecutiveBonus:F2}점!");
+        }
+        else
+        {
+            consecutiveTerritoryGains = 1; // 첫 번째 확장으로 초기화
+        }
+
+        lastTerritoryTime = Time.time;
+
+        // 에피소드 총 영역 확보 성과 보상
+        if (totalTerritoryGainedThisEpisode >= 100)
+        {
+            AddReward(15.0f); // 에피소드 내 100 타일 이상 확보 시 특별 보상
+            Debug.Log($"[MyAgent] 👑 EPISODE MASTER! Player {controller?.playerID}: " +
+                     $"에피소드 내 총 {totalTerritoryGainedThisEpisode} 타일 확보!");
+        }
     }
-
-    // // **🚨 NEW: 영역 완성 감지 및 보상 시스템**
-    // public void NotifyTerritoryCompletion(int gainedTiles)
-    // {
-    //     if (gainedTiles > 0)
-    //     {
-    //         // 📈 획득한 타일 수에 비례하는 압도적인 보상 시스템
-    //         float territoryReward = gainedTiles * 1.5f; // 기본 생존 보상(0.01f) 대비 150배 강력
-
-    //         // 🎯 대규모 영역 확보 시 추가 보너스
-    //         if (gainedTiles >= 50)
-    //         {
-    //             territoryReward += 25.0f; // 대규모 확장 보너스
-    //             // Debug.Log($"[MyAgent] 🏆 MASSIVE TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 대규모 보너스!");
-    //         }
-    //         else if (gainedTiles >= 20)
-    //         {
-    //             territoryReward += 10.0f; // 중규모 확장 보너스
-    //             // Debug.Log($"[MyAgent] 🎖️ LARGE TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 중규모 보너스!");
-    //         }
-    //         else if (gainedTiles >= 10)
-    //         {
-    //             territoryReward += 5.0f; // 소규모 확장 보너스
-    //             // Debug.Log($"[MyAgent] 🥇 GOOD TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 소규모 보너스!");
-    //         }
-
-    //         AddReward(territoryReward);
-    //         // Debug.Log($"[MyAgent] 💰 TERRITORY REWARD! Player {controller?.playerID}: " +
-    //         //          $"획득 타일 {gainedTiles}개 → 보상 {territoryReward:F2}점!");
-
-    //         // 🎯 연속 영역 확보 감지 및 추가 보상
-    //         RegisterTerritoryExpansion(gainedTiles);
-    //     }
-    // }    // **🚨 NEW: 연속 영역 확보 추적 및 효율성 보상**
-    // private int consecutiveTerritoryGains = 0;
-    // private float lastTerritoryTime = 0f;
-    // private int totalTerritoryGainedThisEpisode = 0;
-
-    // // **🚨 NEW: 플레이어 ID 확인용 public 프로퍼티**
-    // public int PlayerID => controller?.playerID ?? -1;
-
-    // private void RegisterTerritoryExpansion(int gainedTiles)
-    // {
-    //     totalTerritoryGainedThisEpisode += gainedTiles;
-
-    //     // 빠른 연속 영역 확보 감지 (30초 이내)
-    //     if (Time.time - lastTerritoryTime < 30f)
-    //     {
-    //         consecutiveTerritoryGains++;
-
-    //         // 연속 확장 보너스
-    //         float consecutiveBonus = consecutiveTerritoryGains * 2.0f;
-    //         AddReward(consecutiveBonus);
-    //         // Debug.Log($"[MyAgent] 🔥 CONSECUTIVE EXPANSION! Player {controller?.playerID}: " +
-    //         //          $"연속 {consecutiveTerritoryGains}회 → 추가 보상 {consecutiveBonus:F2}점!");
-    //     }
-    //     else
-    //     {
-    //         consecutiveTerritoryGains = 1; // 첫 번째 확장으로 초기화
-    //     }
-
-    //     lastTerritoryTime = Time.time;
-
-    //     // 에피소드 총 영역 확보 성과 보상
-    //     if (totalTerritoryGainedThisEpisode >= 100)
-    //     {
-    //         AddReward(15.0f); // 에피소드 내 100 타일 이상 확보 시 특별 보상
-    //         // Debug.Log($"[MyAgent] 👑 EPISODE MASTER! Player {controller?.playerID}: " +
-    //         //          $"총 {totalTerritoryGainedThisEpisode} 타일 확보!");
-    //     }
-    // }
 
     private void DelayedEndEpisode()
     {
@@ -939,10 +936,10 @@ public class MyAgent : Agent
                 // Debug.Log($"MyAgent({controller.playerID}): 점수 기반 사망 감지 (score: {currentScore})");
                 NotifyDeath();
                 return;
-            }
-            if (currentScore >= 4000) // 승리
+            }            if (currentScore >= 1000) // 승리 조건: 1000점 (9일전 커밋 복구)
             {
-                AddReward(100.0f); // 10배 스케일링: 10.0f → 100.0f
+                AddReward(50.0f); // 승리 보상
+                Debug.Log($"[MyAgent] 🏆 VICTORY! Player {controller.playerID} 승리! 점수: {currentScore}");
                 EndEpisode();
                 return;
             }
@@ -1038,7 +1035,7 @@ public class MyAgent : Agent
         if (enemyDistance < 3f && isInSafeZone)
         {
             AddReward(+0.1f * (1 + (4 - rank) * 0.1f)); // 10배 스케일링: +0.01f → +0.1f
-        }        // ✅ 5. 점유율 변화량 보상 - 대폭 강화!
+        }        // ✅ 5. 점유율 변화량 보상 - 대폭 강화! + 자체 영역 완성 감지
         int currentOwned = CountOwnedTiles(controller.playerID);
         int delta = currentOwned - prevOwnedTileCount;
         if (delta > 0)
@@ -1054,10 +1051,16 @@ public class MyAgent : Agent
                 AddReward(3.0f * delta); // 대폭 상향! 1칸당 3.0f (기존 0.05f에서 60배 증가)
                 Debug.Log($"[MyAgent] ✨ 영역 확장! +{delta}칸, 보상: {3.0f * delta:F1}f");
             }
+            
+            // 🎯 대형 영역 확장 시 추가 Territory Completion 보상 (자체 감지, 캡슐화 개선)
+            if (delta >= 10)
+            {
+                NotifyTerritoryCompletion(delta); // 내부 호출로 캡슐화 유지
+            }
         }
         else if (delta < 0)
             AddReward(-0.5f * Mathf.Abs(delta)); // 손실 페널티도 증가 (기존 -0.01f에서 50배 증가)
-        prevOwnedTileCount = currentOwned;        // ✅ 6. 전략적 공격 보상: 적 trail 차단 - 대폭 강화!
+        prevOwnedTileCount = currentOwned;// ✅ 6. 전략적 공격 보상: 적 trail 차단 - 대폭 강화!
         int trailOwner = mapManager.GetTrail(nextPos);
         if (trailOwner != 0 && trailOwner != controller.playerID)
         {
