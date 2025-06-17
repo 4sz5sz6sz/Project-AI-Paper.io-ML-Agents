@@ -1,0 +1,47 @@
+{
+    "Basic_easy": {
+        "checkpoints": [
+            {
+                "steps": 65921,
+                "file_path": "results\\alpha5\\Basic_easy\\Basic_easy-65921.onnx",
+                "reward": null,
+                "creation_time": 1750155905.8620164,
+                "auxillary_file_paths": [
+                    "results\\alpha5\\Basic_easy\\Basic_easy-65921.pt"
+                ]
+            },
+            {
+                "steps": 499895,
+                "file_path": "results\\alpha5\\Basic_easy\\Basic_easy-499895.onnx",
+                "reward": 31.807900076820737,
+                "creation_time": 1750162002.7960246,
+                "auxillary_file_paths": [
+                    "results\\alpha5\\Basic_easy\\Basic_easy-499895.pt"
+                ]
+            },
+            {
+                "steps": 698202,
+                "file_path": "results\\alpha5\\Basic_easy\\Basic_easy-698202.onnx",
+                "reward": 65.03209808244627,
+                "creation_time": 1750164633.801778,
+                "auxillary_file_paths": [
+                    "results\\alpha5\\Basic_easy\\Basic_easy-698202.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 698202,
+            "file_path": "results\\alpha5\\Basic_easy.onnx",
+            "reward": 65.03209808244627,
+            "creation_time": 1750164633.801778,
+            "auxillary_file_paths": [
+                "results\\alpha5\\Basic_easy\\Basic_easy-698202.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "1.1.0",
+        "torch_version": "2.2.2+cu121"
+    }
+}
