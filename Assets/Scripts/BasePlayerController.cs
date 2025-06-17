@@ -121,16 +121,16 @@ public abstract class BasePlayerController : MonoBehaviour
         switch (playerId)
         {
             case 1:
-                spawnPos = new Vector2Int(5, 5);
+                spawnPos = new Vector2Int(30, 30);
                 break;
             case 2:
-                spawnPos = new Vector2Int(55, 20);
+                spawnPos = new Vector2Int(30, 70);
                 break;
             case 3:
-                spawnPos = new Vector2Int(45, 35);
+                spawnPos = new Vector2Int(70, 30);
                 break;
             case 4:
-                spawnPos = new Vector2Int(25, 25);
+                spawnPos = new Vector2Int(70, 70);
                 break;
             default:
                 spawnPos = new Vector2Int(70, 20); // 예외 처리용 중앙 스폰

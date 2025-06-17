@@ -43,10 +43,10 @@ public class MapManager : MonoBehaviour
         // 플레이어 1~4에 따라 위치 설정   
         Vector2Int[] spawnPositions = new Vector2Int[]
         {
-            new Vector2Int(5, 5),     // playerId 1
-            new Vector2Int(55, 20),   // playerId 2
-            new Vector2Int(45, 35),   // playerId 3
-            new Vector2Int(25, 25),   // playerId 4
+            new Vector2Int(30, 30),     // playerId 1
+            new Vector2Int(30, 70),   // playerId 2
+            new Vector2Int(70, 30),   // playerId 3
+            new Vector2Int(70, 70),   // playerId 4
         };
 
         foreach (var player in players)

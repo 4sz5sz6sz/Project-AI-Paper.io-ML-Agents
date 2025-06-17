@@ -987,21 +987,18 @@ public class MyAgent : Agent
     {
         // 벽에 박기 = 매우 초보적인 실수, 큰 페널티
         AddReward(-5.0f); // 초보적 실수에 강력한 페널티
-        Debug.Log("[MyAgent] 💥 벽 충돌 사망 - 초보적 실수 큰 페널티");
     }
 
     public void RewardKilledBySelfDeath()
     {
         // 자기 꼬리 밟기 = 가장 초보적인 실수, 가장 큰 페널티
         AddReward(-5.0f); // 가장 기본적인 실수에 최대 페널티
-        Debug.Log("[MyAgent] 🐍 자기 궤적 충돌 사망 - 최대 페널티");
     }
 
     public void RewardKilledByOthers()
     {
         // 상대의 정교한 공격이나 전략에 당함 = 작은 페널티 (학습 기회)
         AddReward(-2.5f); // 상대방의 실력에 당한 것은 작은 페널티
-        Debug.Log("[MyAgent] ⚔️ 상대방에게 사망 - 전략적 패배 작은 페널티");
     }
     public override void Heuristic(in ActionBuffers actionsOut)
     {
