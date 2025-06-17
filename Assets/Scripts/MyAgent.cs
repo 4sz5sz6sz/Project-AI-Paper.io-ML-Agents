@@ -963,9 +963,9 @@ public class MyAgent : Agent
 
     public void RewardKilledByOthers()
     {
-        // 상대의 정교한 공격이나 전략에 당함 = 작은 페널티 (학습 기회)
-        AddReward(-15.0f); // 상대방의 실력에 당한 것은 작은 페널티
-        Debug.Log("[MyAgent] ⚔️ 상대방에게 사망 - 전략적 패배 작은 페널티");
+        // 상대의 정교한 공격이나 전략에 당함 = 중간 페널티 (위험 노출 실수)
+        AddReward(-45.0f); // 상대방에게 당한 것은 중간 수준 페널티
+        Debug.Log("[MyAgent] ⚔️ 상대방에게 사망 - 위험 노출 중간 페널티");
     }
     public override void Heuristic(in ActionBuffers actionsOut)
     {
