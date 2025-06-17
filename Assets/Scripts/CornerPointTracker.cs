@@ -31,7 +31,7 @@ public class CornerPointTracker : MonoBehaviour
         mapManager = FindFirstObjectByType<MapManager>();
         if (mapManager == null)
         {
-            Debug.LogError("❌ MapManager를 찾을 수 없습니다.");
+            // Debug.LogError("❌ MapManager를 찾을 수 없습니다.");
         }
 
         // ✅ 추가 꼭짓점 표시용 LineRenderer 생성
@@ -64,21 +64,22 @@ public class CornerPointTracker : MonoBehaviour
             return;
         }
 
-        Debug.Log($"🎯 영역 점령 시작 (점 개수: {cornerPoints.Count})");
-        Debug.Log($"🌀 FinalizePolygon called by player {playerId}, point count: {cornerPoints.Count}");        // **🚨 NEW: 영역 완성 시 획득한 타일 수를 받아서 MyAgent에게 알림**
+        // Debug.Log($"🎯 영역 점령 시작 (점 개수: {cornerPoints.Count})");
+        // Debug.Log($"🌀 FinalizePolygon called by player {playerId}, point count: {cornerPoints.Count}");        // **🚨 NEW: 영역 완성 시 획득한 타일 수를 받아서 MyAgent에게 알림**
         int gainedTiles = mapManager.ApplyCornerArea(cornerPoints, playerId);
 
         // MyAgent 찾아서 알림 (해당 플레이어 ID의 MyAgent)
-        MyAgent[] allAgents = FindObjectsByType<MyAgent>(FindObjectsSortMode.None);
-        foreach (var agent in allAgents)
-        {
-            if (agent.PlayerID == playerId)
-            {
-                agent.NotifyTerritoryCompletion(gainedTiles);
-                Debug.Log($"[CornerPointTracker] 🎉 MyAgent Player {playerId}에게 영역 완성 알림: {gainedTiles} 타일 획득!");
-                break;
-            }
-        }
+        // MyAgent[] allAgents = FindObjectsByType<MyAgent>(FindObjectsSortMode.None);
+        // foreach (var agent in allAgents)
+        // {
+        //     if (agent.PlayerID == playerId)
+        //     {
+        //         //임시로 막아뒀음 나중에 다시 써야할수도? 
+        //         // agent.NotifyTerritoryCompletion(gainedTiles);
+        //         // Debug.Log($"[CornerPointTracker] 🎉 MyAgent Player {playerId}에게 영역 완성 알림: {gainedTiles} 타일 획득!");
+        //         break;
+        //     }
+        // }
 
         Clear();
     }

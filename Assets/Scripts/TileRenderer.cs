@@ -132,6 +132,7 @@ public class TileRenderer : MonoBehaviour
             case 1: return Color.green;
             case 2: return Color.red;
             case 3: return Color.blue;
+            case 4: return Color.magenta;
             default: return Color.black;
         }
     }

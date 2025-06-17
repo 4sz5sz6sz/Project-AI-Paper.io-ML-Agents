@@ -1,12 +1,22 @@
 using TMPro;
 using UnityEngine;
 using System.Collections.Generic;
+using System.Linq;
+using UnityEngine.Audio;
 
 public class GameController : MonoBehaviour
 {
     public static GameController Instance { get; private set; }
 
     private Dictionary<int, int> playerScores = new();
+    private Color highlightColor = Color.red; // 캐릭터 점수 색상
+    private Color defaultColor = Color.black; // 기본 텍스트 색상
+    private int myPlayerId = 1; // 내 캐릭터
+
+    [Header("ScoreSound")]
+    AudioSource audioSource;
+    public AudioClip getSound;
+    public AudioClip BGM;
 
     [SerializeField] private TextMeshProUGUI[] playerTexts;  // P1 ~ P4 UI 연결용
 
@@ -15,8 +25,10 @@ public class GameController : MonoBehaviour
     private static bool cameraFollowMode = false; // true면 특정 플레이어 추적, false면 고정
     private static int followingPlayerId = -1;
 
+
     void Awake()
     {
+        audioSource = GetComponent<AudioSource>();
         if (Instance != null && Instance != this) Destroy(gameObject);
         else Instance = this;
     }
@@ -28,8 +40,12 @@ public class GameController : MonoBehaviour
             mainCamera = Camera.main;
         }
 
-        // 메인 플레이어 찾아서 카메라 설정
-        BasePlayerController[] players = FindObjectsByType<BasePlayerController>(FindObjectsSortMode.None);
+        audioSource.clip = BGM;
+        audioSource.loop = true;
+        audioSource.Play();
+
+       // 메인 플레이어 찾아서 카메라 설정
+       BasePlayerController[] players = FindObjectsByType<BasePlayerController>(FindObjectsSortMode.None);
         foreach (var player in players)
         {
             if (player.isMainPlayer)
@@ -54,6 +70,49 @@ public class GameController : MonoBehaviour
     {
         HandleCameraControl(); // 카메라 제어 처리
     }    // 카메라 제어 입력 처리
+
+    void SortScores()
+    {
+        // playerTexts가 준비되지 않았거나 최소 4개 미만일 땐 실행하지 않음 : 안전장치
+        if (playerTexts == null || playerTexts.Length < 4)
+            return;
+
+        // 1) sortedScores: 플레이어 ID와 점수를 저장하는 리스트 복사
+        var sortedScores = new List<KeyValuePair<int, int>>(playerScores);
+
+        // 2) 점수 기준 내림차순 정렬
+        sortedScores.Sort((a, b) => b.Value.CompareTo(a.Value));
+
+        // 3) UI 텍스트 슬롯에 순위별로 점수 할당
+        for (int i = 0; i < playerTexts.Length; i++)
+        {
+            // 색상 초기화
+            playerTexts[i].color = defaultColor;
+            playerTexts[i].fontStyle = FontStyles.Normal;
+
+            if (i < sortedScores.Count)
+            {
+                int playerId = sortedScores[i].Key;
+                int score = sortedScores[i].Value;
+
+                playerTexts[i].text = $"P{playerId}: {score}";
+
+                // 내 플레이어라면 강조
+                if (playerId == myPlayerId)
+                {
+                    playerTexts[i].color = highlightColor;
+                    playerTexts[i].fontStyle = FontStyles.Bold;
+                }
+            }
+            else
+            {
+                // 점수 없는 슬롯
+                playerTexts[i].text = $"P{i + 1}: 0";
+            }
+        }
+    }
+
+
     private void HandleCameraControl()
     {
         // 카메라가 없으면 다시 찾기
@@ -130,11 +189,7 @@ public class GameController : MonoBehaviour
     public void SetScore(int playerId, int score)
     {
         playerScores[playerId] = score;
-
-        if (playerTexts != null && playerId >= 1 && playerId <= playerTexts.Length)
-        {
-            playerTexts[playerId - 1].text = $"P{playerId}: {score}";
-        }
+        SortScores(); // 점수 설정할 때도 정렬 수행
     }
 
     public int GetScore(int playerId)
@@ -148,17 +203,18 @@ public class GameController : MonoBehaviour
             playerScores[playerId] = 0;
 
         playerScores[playerId] += delta;
-
-        if (playerTexts != null && playerId >= 1 && playerId <= playerTexts.Length)
+        if(playerId == myPlayerId)
         {
-            playerTexts[playerId - 1].text = $"P{playerId}: {playerScores[playerId]}";
+            audioSource.PlayOneShot(getSound);
         }
+        SortScores(); // 점수 변경할 때마다 정렬 수행
     }
     public void KillPlayer(int playerId, int deathType = -1)
     {
         //deathType: 1은 맵 경계 충돌, 2는 자신의 꼬리 밟음, 3은 다른 플레이어에게 궤적을 밟혀 사망, -1은 비정상 작동
 
         // 플레이어 오브젝트 찾기
+       
         GameObject player = FindPlayerById(playerId);
         if (player != null)
         {
@@ -188,17 +244,17 @@ public class GameController : MonoBehaviour
                     case 1:
                         // 맵 경계 충돌로 사망
                         agent.RewardKilledByWallDeath();
-                        
+
                         break;
                     case 2:
                         // 자신의 꼬리 밟음으로 사망
                         agent.RewardKilledBySelfDeath();
-              
+
                         break;
                     case 3:
                         // 다른 플레이어에게 궤적을 밟혀 사망
-                        agent.RewarKilledByOthers();
-                        
+                        agent.RewardKilledByOthers();
+
                         break;
                 }
                 // 즉시 사망 알림 및 재시작 (점수는 재시작에서 초기화됨)

@@ -475,6 +475,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 7106441921147378981, guid: 1d8f2f5aeb9b6524ab467c4e0e2c4609, type: 3}
+      propertyPath: m_BehaviorName
+      value: Basic_T
+      objectReference: {fileID: 0}
     - target: {fileID: 8650089224967987095, guid: 1d8f2f5aeb9b6524ab467c4e0e2c4609, type: 3}
       propertyPath: m_Name
       value: Player2
@@ -752,34 +756,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 288494687000763844, guid: b89a6e3079d21194b9c0f6760ee5e3fa, type: 3}
-      propertyPath: m_Size.x
-      value: 2.32
-      objectReference: {fileID: 0}
-    - target: {fileID: 288494687000763844, guid: b89a6e3079d21194b9c0f6760ee5e3fa, type: 3}
-      propertyPath: m_Size.y
-      value: 2.28
-      objectReference: {fileID: 0}
-    - target: {fileID: 288494687000763844, guid: b89a6e3079d21194b9c0f6760ee5e3fa, type: 3}
-      propertyPath: m_Sprite
-      value: 
-      objectReference: {fileID: 5395132616988564710, guid: 463f88a2bd981854daca300754d3cb50, type: 3}
-    - target: {fileID: 288494687000763844, guid: b89a6e3079d21194b9c0f6760ee5e3fa, type: 3}
-      propertyPath: m_Color.b
-      value: 0.9858491
-      objectReference: {fileID: 0}
-    - target: {fileID: 288494687000763844, guid: b89a6e3079d21194b9c0f6760ee5e3fa, type: 3}
-      propertyPath: m_Color.g
-      value: 0.9858491
-      objectReference: {fileID: 0}
-    - target: {fileID: 288494687000763844, guid: b89a6e3079d21194b9c0f6760ee5e3fa, type: 3}
-      propertyPath: m_Color.r
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 288494687000763844, guid: b89a6e3079d21194b9c0f6760ee5e3fa, type: 3}
-      propertyPath: m_WasSpriteAssigned
-      value: 1
-      objectReference: {fileID: 0}
     - target: {fileID: 693690195430840112, guid: b89a6e3079d21194b9c0f6760ee5e3fa, type: 3}
       propertyPath: m_Name
       value: Player1
@@ -837,22 +813,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 1303949830591574011, guid: b4a2b467eabd88e4e866d6d9a146f484, type: 3}
-      propertyPath: m_SizeDelta.y
-      value: 179.3882
-      objectReference: {fileID: 0}
-    - target: {fileID: 1303949830591574011, guid: b4a2b467eabd88e4e866d6d9a146f484, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: -3
-      objectReference: {fileID: 0}
-    - target: {fileID: 1303949830591574011, guid: b4a2b467eabd88e4e866d6d9a146f484, type: 3}
-      propertyPath: m_AnchoredPosition.x
-      value: -100.7
-      objectReference: {fileID: 0}
-    - target: {fileID: 1303949830591574011, guid: b4a2b467eabd88e4e866d6d9a146f484, type: 3}
-      propertyPath: m_AnchoredPosition.y
-      value: -89.8
-      objectReference: {fileID: 0}
     - target: {fileID: 2415102575265624110, guid: b4a2b467eabd88e4e866d6d9a146f484, type: 3}
       propertyPath: m_Pivot.x
       value: 0
@@ -936,18 +896,6 @@ PrefabInstance:
     - target: {fileID: 8204398108454487576, guid: b4a2b467eabd88e4e866d6d9a146f484, type: 3}
       propertyPath: m_Name
       value: Canvas
-      objectReference: {fileID: 0}
-    - target: {fileID: 8798203988313108454, guid: b4a2b467eabd88e4e866d6d9a146f484, type: 3}
-      propertyPath: m_Color.b
-      value: 0.38652545
-      objectReference: {fileID: 0}
-    - target: {fileID: 8798203988313108454, guid: b4a2b467eabd88e4e866d6d9a146f484, type: 3}
-      propertyPath: m_Color.g
-      value: 0.38652545
-      objectReference: {fileID: 0}
-    - target: {fileID: 8798203988313108454, guid: b4a2b467eabd88e4e866d6d9a146f484, type: 3}
-      propertyPath: m_Color.r
-      value: 0.4764151
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

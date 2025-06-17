@@ -17,14 +17,14 @@ public class PlayerController2 : BasePlayerController
         else if (Keyboard.current.lKey.isPressed)
             input = Vector2Int.right;
 
-        if (input != Vector2Int.zero && input != -direction)
+        if (input != Vector2Int.zero /*&& input != -direction*/)
             queuedDirection = input;
     }
     protected override void HandleMovement()
     {
         HandleInput();
 
-        if (!isMoving && queuedDirection != Vector2Int.zero && queuedDirection != -direction)
+        if (!isMoving && queuedDirection != Vector2Int.zero /*&& queuedDirection != -direction*/)
         {
             if (direction != Vector2Int.zero && queuedDirection != direction && !wasInsideOwnedArea)
             {

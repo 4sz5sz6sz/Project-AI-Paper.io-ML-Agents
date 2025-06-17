@@ -19,7 +19,7 @@ public class PlayerController : BasePlayerController
         else if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed)
             input = Vector2Int.right;
 
-        if (input != Vector2Int.zero && input != -direction)
+        if (input != Vector2Int.zero /*&& input != -direction*/)
             queuedDirection = input;
     }
     void OnTriggerEnter2D(Collider2D other)

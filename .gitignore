@@ -71,12 +71,9 @@ crashlytics-build.properties
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
 
-# ML-Agents Training Results (매우 중요!)
-results/
-models/
-*.onnx
-*.nn
-summaries/
-run_logs/
-*_training/
-curriculum*.json
+# ML-Agents Performance Timers (자동 생성 파일들)
+Assets/ML-Agents/Timers/
+*_timers.json
+/Assets/ML-Agents/Timers
+/Assets/ML-Agents/Timers
+Assets/ML-Agents/Timers/JW_timers.json

@@ -57,5 +57,5 @@
         "Temp/": true
     },
     "dotnet.defaultSolution": "Project-AI-Paper.io-ML-Agents.sln",
-    "editor.formatOnSave": true
+    "editor.formatOnSave": false
 }

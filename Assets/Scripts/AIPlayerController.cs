@@ -20,7 +20,7 @@ public class AIPlayerController : BasePlayerController
 
     public void SetDirection(Vector2Int newDirection)
     {
-        if (newDirection != Vector2Int.zero && newDirection != -direction)
+        if (newDirection != Vector2Int.zero /*&& newDirection != -direction*/)
             queuedDirection = newDirection;
     }
 }
