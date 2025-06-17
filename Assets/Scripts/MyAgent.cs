@@ -1044,15 +1044,14 @@ public class MyAgent : Agent
         int delta = currentOwned - prevOwnedTileCount;
         if (delta > 0)
         {
-
             float trailDuration = Time.time - trailStartTime;
             if (lastTrailLength > 10 && trailDuration > 5f)
             {
-                AddReward(0.1f * delta); // 점령 보상 (10배 스케일링: 0.01f → 0.1f)
+                AddReward(1.0f * delta); // 기존 0.5f에서 2배 증가
             }
             else
             {
-                AddReward(0.05f * delta); // 점령 보상 (10배 스케일링: 0.005f → 0.05f)
+                AddReward(0.5f * delta); // 기존 0.25f에서 2배 증가
             }
         }
         else if (delta < 0)
@@ -1061,9 +1060,8 @@ public class MyAgent : Agent
         int trailOwner = mapManager.GetTrail(nextPos);
         if (trailOwner != 0 && trailOwner != controller.playerID)
         {
-            // 100칸 먹은 것과 동일한 고정 보상
-            float reward = 1.0f; // 0.01f * 100칸과 동일
-
+            // 200칸 먹은 것과 동일한 고정 보상
+            float reward = 2.0f; // 기존 1.0f에서 2배 증가
             AddReward(reward);
 
             // 디버깅 로그(optional)
