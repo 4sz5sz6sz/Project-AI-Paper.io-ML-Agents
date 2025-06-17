@@ -10,6 +10,7 @@ public class MyAgent : Agent
     private AIPlayerController controller;
     private GameController gameManager;
     private MapManager mapManager;
+    private CornerPointTracker cornerTracker;
 
     private Vector2Int[] possibleActions = new Vector2Int[]
     {
@@ -26,9 +27,7 @@ public class MyAgent : Agent
     private const int MAX_STEPS_WITHOUT_PROGRESS = 500;
     private int stepsWithoutProgress = 0;
     private float previousScore = 0f;
-    private Vector2Int previousPosition = Vector2Int.zero;
-
-    // **🚨 NEW: 영역 확보 추적 변수들**
+    private Vector2Int previousPosition = Vector2Int.zero;    // **🚨 NEW: 영역 확보 추적 변수들**
     private float lastThreatLevel;
     private int lastTrailLength;
     private float trailStartTime;
@@ -42,12 +41,11 @@ public class MyAgent : Agent
             mapManager = MapManager.Instance;
         // if (mapManager == null)
         // Debug.LogError("MyAgent: Start()에서도 MapManager.Instance를 찾지 못했습니다!");
-    }
-
-    public override void Initialize()
+    }    public override void Initialize()
     {
         controller = GetComponent<AIPlayerController>();
         gameManager = GameController.Instance;
+        cornerTracker = GetComponent<CornerPointTracker>();
 
         // Debug.Log("[MyAgent] Initialize 완료 - 🎯 3x3 중심 ULTRA 최적화 관찰 시스템 (1,319차원)");
     }
@@ -55,9 +53,7 @@ public class MyAgent : Agent
     {
         // Debug.Log($"[MyAgent] Player {controller?.playerID} 에피소드 시작");
 
-        // **상태 초기화**
-
-        //영역 관찰 변수 초기화 myagent보상함수와 연동할 때 필요
+        // **상태 초기화**        //영역 관찰 변수 초기화 myagent보상함수와 연동할 때 필요
         lastThreatLevel = 0f;
         lastTrailLength = 0;
         trailStartTime = 0f;
@@ -922,6 +918,9 @@ public class MyAgent : Agent
             // **🛡️ 안전 거리 제약 - 너무 멀리 나가면 패널티**
             CheckSafetyDistance(currentPos);
             
+            // **🐌 다각형 내부 체류 패널티 - 달팽이 방지 시스템**
+            CheckPolygonStayPenalty();
+            
             controller.SetDirection(newDirection);
         }
         else
@@ -1288,5 +1287,58 @@ public class MyAgent : Agent
             }
         }
         return minDistance;
+    }    // **🎯 바둑의 "예상 집" 개념 - 꼭짓점으로 형성된 다각형 내부 감지**
+    private bool IsPointInOwnPolygon(Vector2Int point)
+    {
+        if (controller == null || cornerTracker == null) return false;
+        
+        var cornerPoints = cornerTracker.GetPoints();
+        if (cornerPoints.Count < 3) return false; // 최소 3개 점이 있어야 다각형 형성
+        
+        // Vector2Int를 Vector2로 변환
+        List<Vector2> polygon = new List<Vector2>();
+        foreach (var corner in cornerPoints)
+        {
+            polygon.Add(new Vector2(corner.x, corner.y));
+        }
+        
+        // Ray-casting 알고리즘으로 점-다각형 포함 검사
+        Vector2 pt = new Vector2(point.x + 0.5f, point.y + 0.5f); // 그리드 중앙점 사용
+        bool inside = false;
+        int n = polygon.Count;
+        
+        for (int i = 0, j = n - 1; i < n; j = i++)
+        {
+            Vector2 a = polygon[i], b = polygon[j];
+            if ((a.y > pt.y) != (b.y > pt.y) &&
+                pt.x < (b.x - a.x) * (pt.y - a.y) / (b.y - a.y) + a.x)
+            {
+                inside = !inside;
+            }
+        }
+        
+        return inside;
+    }
+    
+    // **🚨 다각형 내부 체류 패널티 적용 - 달팽이 방지 시스템**
+    private void CheckPolygonStayPenalty()
+    {
+        Vector2Int currentPos = new Vector2Int(
+            Mathf.RoundToInt(transform.localPosition.x),
+            Mathf.RoundToInt(transform.localPosition.y)
+        );
+        
+        // 현재 위치가 자신의 꼭짓점 다각형 내부인지 확인
+        bool isCurrentlyInsidePolygon = IsPointInOwnPolygon(currentPos);
+          // 지금 다각형 내부에 있으면 무조건 패널티 (이전 상태 무관)
+        if (isCurrentlyInsidePolygon)
+        {
+            // **🎯 "달팽이 방지" 패널티 - 항상 동일한 크기의 패널티**
+            float stayPenalty = -2f; // 다각형 크기와 무관한 고정 패널티
+            
+            AddReward(stayPenalty);
+            
+            Debug.Log($"[MyAgent] 🐌 다각형 내부 체류 패널티! Player {controller?.playerID}: {stayPenalty:F2}점 감점");
+        }
     }
 }
