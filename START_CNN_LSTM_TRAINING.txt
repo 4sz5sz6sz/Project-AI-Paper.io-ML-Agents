@@ -1,0 +1,157 @@
+# 🎮 CNN + LSTM Paper.io AI 학습 가이드
+
+## 📋 1단계: Unity Inspector 설정 변경 (매우 중요!)
+
+### 🎯 각 Player Prefab 설정 변경:
+1. Unity Editor 열기
+2. Project 윈도우 → Assets → Prefabs 폴더
+3. 다음 4개 파일을 순서대로 설정:
+
+### Player1.prefab 설정:
+- Player1.prefab 더블클릭 또는 선택
+- Inspector 윈도우에서 "Behavior Parameters" 컴포넌트 찾기
+- 다음 값들 변경:
+  * Behavior Name: Basic → CNN_LSTM_Agent
+  * Vector Observation Size: 1334 → 84
+  * Use Child Sensors: true (체크되어 있는지 확인)
+- Ctrl+S로 저장
+
+### Player2.prefab 설정:
+- Player2.prefab 선택
+- Inspector → Behavior Parameters:
+  * Behavior Name: Basic → CNN_LSTM_Agent  
+  * Vector Observation Size: 1334 → 84
+  * Use Child Sensors: true (체크되어 있는지 확인)
+- Ctrl+S로 저장
+
+### Player3.prefab 설정:
+- Player3.prefab 선택  
+- Inspector → Behavior Parameters:
+  * Behavior Name: Basic → CNN_LSTM_Agent
+  * Vector Observation Size: 1334 → 84
+  * Use Child Sensors: true (체크되어 있는지 확인)
+- Ctrl+S로 저장
+
+### Player4.prefab 설정:
+- Player4.prefab 선택
+- Inspector → Behavior Parameters:
+  * Behavior Name: Basic → CNN_LSTM_Agent
+  * Vector Observation Size: 1334 → 84  
+  * Use Child Sensors: true (체크되어 있는지 확인)
+- Ctrl+S로 저장
+
+### ✅ 확인사항:
+- 모든 Player의 Behavior Name이 "CNN_LSTM_Agent"로 동일한지 확인
+- 모든 Player의 Vector Observation Size가 84로 동일한지 확인
+- Use Child Sensors가 모두 true인지 확인 (Visual Observation 활성화용)
+
+## 🚀 2단계: 학습 시작
+
+### 터미널 명령어:
+```bash
+# 1. Conda 환경 활성화
+conda activate mlagents
+
+# 2. CNN + LSTM 학습 시작
+mlagents-learn cnn_lstm_config.yaml --run-id=CNN_LSTM_run
+```
+
+### 대체 명령어 (혹시 문제 생기면):
+```bash
+# 특정 포트 지정
+mlagents-learn cnn_lstm_config.yaml --run-id=CNN_LSTM_run --base-port=5005
+
+# 기존 학습 이어서 하기 (나중에 중단 후 재시작할 때)
+mlagents-learn cnn_lstm_config.yaml --run-id=CNN_LSTM_run --resume
+```
+
+## 🎮 3단계: Unity에서 학습 연결
+
+1. 터미널에서 학습 시작 후 "Start training by pressing the Play button in the Unity Editor" 메시지 확인
+2. Unity Editor로 돌아가기
+3. Play 버튼 (▶️) 클릭
+4. 학습 자동 연결 및 시작
+
+## 📊 4단계: 학습 모니터링
+
+### 터미널 출력 확인:
+```
+[INFO] Connected to Unity environment with package version X.X.X
+[INFO] Connected new brain with behavior name: CNN_LSTM_Agent
+[INFO] Hyperparameters for behavior name CNN_LSTM_Agent:
+  - CNN: Visual Observation 활성화
+  - LSTM: Memory 256, Sequence 64  
+  - Time Horizon: 20 (짧은 계획)
+
+매 2000스텝마다:
+[INFO] Step: 2000. Mean Reward: -45.2. Std: 12.1
+[INFO] Step: 4000. Mean Reward: -32.8. Std: 15.3
+...
+```
+
+### Tensorboard 모니터링 (선택사항):
+```bash
+# 별도 터미널에서
+tensorboard --logdir results
+# 브라우저에서 http://localhost:6006 접속
+```
+
+## ⚠️ 문제 해결
+
+### 자주 발생하는 에러들:
+
+1. **Behavior name 에러:**
+```
+[ERROR] Behavior name 'Basic' not found in trainer config
+→ Unity Inspector에서 모든 Player의 Behavior Name을 CNN_LSTM_Agent로 제대로 변경했는지 확인
+```
+
+2. **Vector size 불일치:**
+```
+[ERROR] Vector observation size mismatch  
+→ Unity Inspector에서 Vector Observation Size가 84인지 확인
+→ MyAgent.cs 코드에서 실제로 84차원을 생성하는지 확인
+```
+
+3. **Unity 연결 실패:**
+```
+→ Unity Play 버튼을 눌렀는지 확인
+→ 터미널에서 학습이 제대로 시작되었는지 확인
+```
+
+## 🎯 학습 설정 정보
+
+현재 cnn_lstm_config.yaml 설정:
+- **CNN**: Visual Observation (84x84 이미지)
+- **LSTM**: Memory 256, Sequence 64 (과거 64스텝 기억)
+- **Vector**: 84차원 (게임 상태 정보)
+- **Time Horizon**: 20 (짧고 안전한 계획)
+- **Summary Freq**: 2000 (2000스텝마다 진행상황 출력)
+
+## 📈 학습 완료 후
+
+학습된 모델은 다음 위치에 저장됩니다:
+```
+results/CNN_LSTM_run/CNN_LSTM_Agent/
+├── CNN_LSTM_Agent-XXXXX.onnx  ← 학습된 모델
+├── configuration.yaml          ← 학습 설정 기록
+└── run_logs/                   ← 학습 로그
+```
+
+## 🎮 학습된 모델 사용하기
+
+1. Unity Inspector → Behavior Parameters:
+   - Model 필드에 생성된 .onnx 파일 드래그
+   - Behavior Type: Default
+2. Play 버튼으로 AI 플레이 확인
+
+---
+
+## 💡 참고사항
+
+- **CNN**: 각 플레이어의 시야를 이미지로 학습
+- **LSTM**: 과거 행동 패턴을 기억하여 더 똑똑한 판단
+- **Time Horizon 20**: 매우 보수적이고 안전한 플레이 스타일
+- **요약 빈도 2000**: 학습 진행상황을 자주 확인 가능
+
+**🎯 중요**: Unity Inspector 설정을 정확히 해야 학습이 제대로 됩니다!

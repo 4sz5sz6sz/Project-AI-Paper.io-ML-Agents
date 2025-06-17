@@ -1,0 +1,29 @@
+{
+    "CNN_LSTM_Agent": {
+        "checkpoints": [
+            {
+                "steps": 36734,
+                "file_path": "results\\CNN_LSTM_run\\CNN_LSTM_Agent\\CNN_LSTM_Agent-36734.onnx",
+                "reward": -145.72666454315186,
+                "creation_time": 1750144657.0199919,
+                "auxillary_file_paths": [
+                    "results\\CNN_LSTM_run\\CNN_LSTM_Agent\\CNN_LSTM_Agent-36734.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 36734,
+            "file_path": "results\\CNN_LSTM_run\\CNN_LSTM_Agent.onnx",
+            "reward": -145.72666454315186,
+            "creation_time": 1750144657.0199919,
+            "auxillary_file_paths": [
+                "results\\CNN_LSTM_run\\CNN_LSTM_Agent\\CNN_LSTM_Agent-36734.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "1.1.0",
+        "torch_version": "2.2.2+cpu"
+    }
+}
