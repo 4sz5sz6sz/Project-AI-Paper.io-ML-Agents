@@ -10,7 +10,7 @@ behaviors:
       lambd: 0.95
       num_epoch: 3
       learning_rate_schedule: linear
-      entropy_regularization: 0.01  # 탐험 증가
+      entropy_regularization: 0.01
     network_settings:
       normalize: false
       hidden_units: 512
@@ -22,9 +22,9 @@ behaviors:
     reward_signals:
       extrinsic:
         gamma: 0.95
-        strength: 1.0    
+        strength: 1.0
     max_steps: 5000000
-    time_horizon: 50         # 128 → 50 (12×12 둘레 48칸 + 여유분)
+    time_horizon: 50
     summary_freq: 2000
     checkpoint_interval: 50000
     keep_checkpoints: 10
