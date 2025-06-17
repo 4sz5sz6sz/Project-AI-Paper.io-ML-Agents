@@ -918,10 +918,12 @@ public class MyAgent : Agent
                         // 현재 방향을 유지하여 자연스럽게 충돌하도록 함
                     }
                 }
-            }
-
-            // **🚨 위협 평가 기반 향상된 보상 시스템**
+            }            // **🚨 위협 평가 기반 향상된 보상 시스템**
             CalculateSmartRewards(newDirection, currentPos);
+            
+            // **🛡️ 안전 거리 제약 - 너무 멀리 나가면 패널티**
+            CheckSafetyDistance(currentPos);
+            
             controller.SetDirection(newDirection);
         }
         else
@@ -1244,7 +1246,52 @@ public class MyAgent : Agent
         if (opposite >= 0)
         {
             // 해당 방향(반대 방향) 마스킹 - 선택 불가능하게 만듦
-            actionMask.SetActionEnabled(0, opposite, false);
+            actionMask.SetActionEnabled(0, opposite, false);        }
+    }
+
+    // **🛡️ 안전 거리 체크 - 너무 멀리 나가면 패널티**
+    private void CheckSafetyDistance(Vector2Int currentPos)
+    {
+        if (controller == null || mapManager == null) return;
+        
+        int myPlayerID = controller.playerID;
+        int distanceToSafeZone = CalculateMinDistanceToOwnTerritory(currentPos, myPlayerID);
+        
+        // 위험 거리 임계값 설정
+        if (distanceToSafeZone > 20) // 20칸 이상 멀어지면 매우 위험
+        {
+            AddReward(-0.5f); // 너무 멀리 나간 것에 대한 강한 페널티
         }
+        else if (distanceToSafeZone > 15) // 15칸 이상 멀어지면 위험
+        {
+            AddReward(-0.2f); // 위험한 거리에 대한 중간 페널티
+        }
+        else if (distanceToSafeZone > 10) // 10칸 이상 멀어지면 주의
+        {
+            AddReward(-0.05f); // 조금 멀어진 것에 대한 약한 페널티
+        }
+    }
+    
+    private int CalculateMinDistanceToOwnTerritory(Vector2Int pos, int playerID)
+    {
+        int minDistance = 100; // 충분히 큰 초기값
+        
+        // 성능 최적화: 2칸 간격으로 샘플링
+        for (int y = 0; y < mapManager.height; y += 2)
+        {
+            for (int x = 0; x < mapManager.width; x += 2)
+            {
+                Vector2Int checkPos = new Vector2Int(x, y);
+                if (mapManager.GetTile(checkPos) == playerID)
+                {
+                    int distance = Mathf.Abs(pos.x - x) + Mathf.Abs(pos.y - y);
+                    minDistance = Mathf.Min(minDistance, distance);
+                    
+                    // 조기 종료: 매우 가까운 거리 발견 시
+                    if (minDistance <= 3) return minDistance;
+                }
+            }
+        }
+        return minDistance;
     }
 }
