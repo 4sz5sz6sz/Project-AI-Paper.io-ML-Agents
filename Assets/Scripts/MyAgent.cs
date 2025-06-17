@@ -878,7 +878,35 @@ public class MyAgent : Agent
                 Mathf.RoundToInt(transform.localPosition.y)
             );
 
-            Vector2Int nextPos = currentPos + newDirection;            // **🚨 절대 벽 충돌 방지 시스템**
+            Vector2Int nextPos = currentPos + newDirection;
+
+            // 현재 자신의 영역 밖에 있는지 확인
+            bool isOutsideTerritory = mapManager.GetTile(currentPos) != controller.playerID;
+            
+            if (isOutsideTerritory)
+            {
+                // 가장 가까운 자신의 영역 찾기
+                Vector2Int nearestTerritory = FindNearestOwnTerritory(currentPos);
+                
+                // 현재 위치에서 가장 가까운 영역으로의 방향
+                Vector2Int directionToTerritory = new Vector2Int(
+                    Mathf.Clamp(nearestTerritory.x - currentPos.x, -1, 1),
+                    Mathf.Clamp(nearestTerritory.y - currentPos.y, -1, 1)
+                );
+
+                // 선택한 방향이 영역으로 향하는 방향과 얼마나 일치하는지 계산
+                Vector2 dirVector = new Vector2(newDirection.x, newDirection.y);
+                Vector2 targetVector = new Vector2(directionToTerritory.x, directionToTerritory.y).normalized;
+                float alignment = Vector2.Dot(dirVector, targetVector);
+                
+                // 올바른 방향으로 이동하면 보상 (1에 가까울수록 정확한 방향)
+                if (alignment > 0)
+                {
+                    AddReward(0.05f * alignment);  // 정확한 방향일수록 더 큰 보상
+                }
+            }
+
+            // **🚨 절대 벽 충돌 방지 시스템**
             if (!mapManager.InBounds(nextPos))
             {
                 // 벽으로 이동하려는 시도 - 초보적 실수에 강한 페널티
@@ -1262,5 +1290,37 @@ public class MyAgent : Agent
             // 해당 방향(반대 방향) 마스킹 - 선택 불가능하게 만듦
             actionMask.SetActionEnabled(0, opposite, false);
         }
+    }
+
+    // 가장 가까운 자신의 영역 위치를 찾는 함수
+    private Vector2Int FindNearestOwnTerritory(Vector2Int currentPos)
+    {
+        Vector2Int nearest = currentPos;
+        float minDistance = float.MaxValue;
+        
+        // 적절한 탐색 범위 설정 (현재 위치에서 상하좌우 20칸)
+        int searchRange = 20;
+        int startX = Mathf.Max(0, currentPos.x - searchRange);
+        int endX = Mathf.Min(mapManager.width - 1, currentPos.x + searchRange);
+        int startY = Mathf.Max(0, currentPos.y - searchRange);
+        int endY = Mathf.Min(mapManager.height - 1, currentPos.y + searchRange);
+
+        for (int x = startX; x <= endX; x++)
+        {
+            for (int y = startY; y <= endY; y++)
+            {
+                Vector2Int checkPos = new Vector2Int(x, y);
+                if (mapManager.GetTile(checkPos) == controller.playerID)
+                {
+                    float distance = Vector2.Distance(currentPos, checkPos);
+                    if (distance < minDistance)
+                    {
+                        minDistance = distance;
+                        nearest = checkPos;
+                    }
+                }
+            }
+        }
+        return nearest;
     }
 }
