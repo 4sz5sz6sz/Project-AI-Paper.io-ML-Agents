@@ -112,28 +112,26 @@ public abstract class BasePlayerController : MonoBehaviour
     }
 
     // PlayerController.cs의 키보드 입력 처리 부분을 추상화
-    protected abstract void HandleInput();
-
-    protected Vector2Int GetPlayerSpawnPosition(int playerId)
+    protected abstract void HandleInput();    protected Vector2Int GetPlayerSpawnPosition(int playerId)
     {
         Vector2Int spawnPos;
         Debug.Log($"플레이어 {playerId} 스폰 위치 결정");
         switch (playerId)
         {
             case 1:
-                spawnPos = new Vector2Int(5, 5);
+                spawnPos = new Vector2Int(75, 75); // 1시 방향 (북동)
                 break;
             case 2:
-                spawnPos = new Vector2Int(55, 20);
+                spawnPos = new Vector2Int(75, 25); // 5시 방향 (남동)
                 break;
             case 3:
-                spawnPos = new Vector2Int(45, 35);
+                spawnPos = new Vector2Int(25, 75); // 11시 방향 (북서)
                 break;
             case 4:
-                spawnPos = new Vector2Int(25, 25);
+                spawnPos = new Vector2Int(25, 25); // 7시 방향 (남서) - 기존 유지
                 break;
             default:
-                spawnPos = new Vector2Int(70, 20); // 예외 처리용 중앙 스폰
+                spawnPos = new Vector2Int(50, 50); // 예외 처리용 중앙 스폰
                 break;
         }
         return spawnPos;

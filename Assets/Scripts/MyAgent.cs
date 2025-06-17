@@ -87,26 +87,24 @@ public class MyAgent : Agent
             Debug.LogError("MyAgent: AIPlayerController 또는 playerID가 유효하지 않습니다.");
             EndEpisode();
             return;
-        }
-
-        // // 에이전트 재스폰 위치 설정
+        }        // // 에이전트 재스폰 위치 설정 (시계방향 11시, 1시, 5시, 7시)
         // Vector2Int spawnPos;
         // switch (controller.playerID)
         // {
         //     case 1:
-        //         spawnPos = new Vector2Int(5, 5);
+        //         spawnPos = new Vector2Int(75, 75); // 1시 방향 (북동)
         //         break;
         //     case 2:
-        //         spawnPos = new Vector2Int(55, 20);
+        //         spawnPos = new Vector2Int(75, 25); // 5시 방향 (남동)
         //         break;
         //     case 3:
-        //         spawnPos = new Vector2Int(45, 35);
+        //         spawnPos = new Vector2Int(25, 75); // 11시 방향 (북서)
         //         break;
         //     case 4:
-        //         spawnPos = new Vector2Int(25, 25);
+        //         spawnPos = new Vector2Int(25, 25); // 7시 방향 (남서) - 기존 유지
         //         break;
         //     default:
-        //         spawnPos = new Vector2Int(25, 20); // 예외 처리용 중앙 스폰
+        //         spawnPos = new Vector2Int(50, 50); // 예외 처리용 중앙 스폰
         //         break;
         // }
 

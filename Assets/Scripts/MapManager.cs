@@ -38,15 +38,13 @@ public class MapManager : MonoBehaviour
     void Start()
     {
         // 모든 플레이어 찾기
-        BasePlayerController[] players = FindObjectsByType<BasePlayerController>(FindObjectsSortMode.None);
-
-        // 플레이어 1~4에 따라 위치 설정   
+        BasePlayerController[] players = FindObjectsByType<BasePlayerController>(FindObjectsSortMode.None);        // 플레이어 1~4에 따라 위치 설정 (시계방향 11시, 1시, 5시, 7시)
         Vector2Int[] spawnPositions = new Vector2Int[]
         {
-            new Vector2Int(5, 5),     // playerId 1
-            new Vector2Int(55, 20),   // playerId 2
-            new Vector2Int(45, 35),   // playerId 3
-            new Vector2Int(25, 25),   // playerId 4
+            new Vector2Int(75, 75),   // playerId 1 - 1시 방향 (북동)
+            new Vector2Int(75, 25),   // playerId 2 - 5시 방향 (남동)
+            new Vector2Int(25, 75),   // playerId 3 - 11시 방향 (북서)
+            new Vector2Int(25, 25),   // playerId 4 - 7시 방향 (남서)
         };
 
         foreach (var player in players)
