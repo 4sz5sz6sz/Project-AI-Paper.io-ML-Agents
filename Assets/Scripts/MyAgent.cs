@@ -919,7 +919,7 @@ public class MyAgent : Agent
             CheckSafetyDistance(currentPos);
             
             // **🐌 다각형 내부 체류 패널티 - 달팽이 방지 시스템**
-            CheckPolygonStayPenalty();
+            // CheckPolygonStayPenalty();
             
             controller.SetDirection(newDirection);
         }

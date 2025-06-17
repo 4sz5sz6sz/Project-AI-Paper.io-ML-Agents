@@ -5,7 +5,7 @@ using UnityEngine.InputSystem;
 public abstract class BasePlayerController : MonoBehaviour
 {
     // PlayerController.cs의 변수들과 대응
-    public float moveSpeed = 15f;
+    public float moveSpeed = 50f; // 이동 속도 증가
     public bool isMainPlayer = false; // 새로 추가된 변수
 
     // PlayerController.cs의 private 변수들이 protected로 변경됨
