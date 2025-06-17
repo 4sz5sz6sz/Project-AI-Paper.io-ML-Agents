@@ -2,8 +2,8 @@ behaviors:
   CNN_LSTM_Agent:
     trainer_type: ppo
     hyperparameters:
-      batch_size: 2048
-      buffer_size: 20480
+      batch_size: 512        # 2048 → 512 (4배 감소, 더 안정적)
+      buffer_size: 5120      # 20480 → 5120 (4배 감소)
       learning_rate: 3.0e-4
       beta: 5.0e-3
       epsilon: 0.2
@@ -13,15 +13,15 @@ behaviors:
       entropy_regularization: 0.01  # 탐험 증가
     network_settings:
       normalize: false
-      hidden_units: 512
-      num_layers: 3
+      hidden_units: 512      # 256 → 512 (원복: 복잡한 패턴 학습 필요)
+      num_layers: 3          # 2 → 3 (원복: 깊은 사고 필요)
       vis_encode_type: simple
       memory:
-        memory_size: 256
-        sequence_length: 64
+        memory_size: 256     # 128 → 256 (원복: 긴 경로 기억 필요)
+        sequence_length: 64  # 32 → 64 (원복: 내 꼬리 패턴 학습)
     reward_signals:
       extrinsic:
-        gamma: 0.95
+        gamma: 0.95          # 0.99 → 0.95 (즉각적 보상에 더 민감)
         strength: 1.0    
     max_steps: 5000000
     time_horizon: 50         # 128 → 50 (12×12 둘레 48칸 + 여유분)

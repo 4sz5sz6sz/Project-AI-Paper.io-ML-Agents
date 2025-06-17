@@ -953,12 +953,11 @@ public class MyAgent : Agent
         AddReward(-80.0f); // 초보적 실수에 강력한 페널티
         Debug.Log("[MyAgent] 💥 벽 충돌 사망 - 초보적 실수 큰 페널티");
     }
-
     public void RewardKilledBySelfDeath()
     {
-        // 자기 꼬리 밟기 = 가장 초보적인 실수, 가장 큰 페널티
-        AddReward(-100.0f); // 가장 기본적인 실수에 최대 페널티
-        Debug.Log("[MyAgent] 🐍 자기 궤적 충돌 사망 - 최대 페널티");
+        // 자기 꼬리 밟기 = 가장 초보적인 실수, 최대 페널티 강화
+        AddReward(-150.0f); // 가장 기본적인 실수에 강화된 최대 페널티 (기존 -100 → -150)
+        Debug.Log("[MyAgent] 🐍 자기 궤적 충돌 사망 - 강화된 최대 페널티");
     }
 
     public void RewardKilledByOthers()
