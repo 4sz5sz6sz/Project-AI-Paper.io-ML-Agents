@@ -286,7 +286,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BrainParameters:
-    VectorObservationSize: 84
+    VectorObservationSize: 8
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 0
@@ -295,7 +295,7 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 0
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 7f2c1d45520073646baef9447fbd5b4d, type: 3}
   m_InferenceDevice: 0
   m_BehaviorType: 0
   m_BehaviorName: Basic_easy
@@ -409,7 +409,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BrainParameters:
-    VectorObservationSize: 84
+    VectorObservationSize: 8
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 0
@@ -418,7 +418,7 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 0
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 7f2c1d45520073646baef9447fbd5b4d, type: 3}
   m_InferenceDevice: 0
   m_BehaviorType: 0
   m_BehaviorName: Basic_easy
@@ -1128,14 +1128,14 @@ PrefabInstance:
     - target: {fileID: 7106441921147378981, guid: 1d8f2f5aeb9b6524ab467c4e0e2c4609, type: 3}
       propertyPath: m_Model
       value: 
-      objectReference: {fileID: 0}
+      objectReference: {fileID: 5022602860645237092, guid: 7f2c1d45520073646baef9447fbd5b4d, type: 3}
     - target: {fileID: 7106441921147378981, guid: 1d8f2f5aeb9b6524ab467c4e0e2c4609, type: 3}
       propertyPath: m_BehaviorName
       value: Basic_easy
       objectReference: {fileID: 0}
     - target: {fileID: 7106441921147378981, guid: 1d8f2f5aeb9b6524ab467c4e0e2c4609, type: 3}
       propertyPath: m_BrainParameters.VectorObservationSize
-      value: 84
+      value: 8
       objectReference: {fileID: 0}
     - target: {fileID: 7900697822653129119, guid: 1d8f2f5aeb9b6524ab467c4e0e2c4609, type: 3}
       propertyPath: moveSpeed
@@ -1803,6 +1803,7 @@ SceneRoots:
   m_Roots:
   - {fileID: 247636623824279204}
   - {fileID: 5850525521056921197}
+  - {fileID: 2399545952633088898}
   - {fileID: 427369118393474032}
   - {fileID: 1446223162}
   - {fileID: 1269373977111017691}
@@ -1814,4 +1815,3 @@ SceneRoots:
   - {fileID: 6080684798508612490}
   - {fileID: 3144792996985653747}
   - {fileID: 5012248952170395844}
-  - {fileID: 2399545952633088898}

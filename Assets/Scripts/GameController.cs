@@ -211,23 +211,28 @@ public class GameController : MonoBehaviour
     }
     public void KillPlayer(int playerId, int deathType = -1)
     {
-        //deathType: 1은 맵 경계 충돌, 2는 자신의 꼬리 밟음, 3은 다른 플레이어에게 궤적을 밟혀 사망, -1은 비정상 작동
+        //deathType: 1은 맵 경계 충돌, 2는 자신의 꼬리 밟음, 3는 다른 플레이어에게 궤적을 밟혀 사망, -1은 비정상 작동
 
         // 플레이어 오브젝트 찾기
-       
         GameObject player = FindPlayerById(playerId);
         if (player != null)
         {
             // 현재 추적 중인 플레이어가 사망하는 경우 카메라 처리
             if (followingPlayerId == playerId && mainCamera != null)
             {
-                Vector3 lastPosition = player.transform.position;
-
-                // 카메라를 플레이어의 마지막 위치에 고정
-                mainCamera.transform.parent = null; // 부모 연결 해제
-                mainCamera.transform.position = new Vector3(lastPosition.x, lastPosition.y, -10f);
-                cameraFollowMode = false; // 고정 모드로 전환
-                followingPlayerId = -1; // 추적 대상 초기화
+                if (playerId == 1) // 플레이어 1이 죽은 경우
+                {
+                    // 잠시 후에 자동으로 다시 플레이어 1을 따라가도록 설정
+                    Invoke("ReattachCameraToPlayer1", 1.0f);
+                }
+                else // 다른 플레이어가 죽은 경우 기존 로직 유지
+                {
+                    Vector3 lastPosition = player.transform.position;
+                    mainCamera.transform.parent = null;
+                    mainCamera.transform.position = new Vector3(lastPosition.x, lastPosition.y, -10f);
+                    cameraFollowMode = false;
+                    followingPlayerId = -1;
+                }
             }
 
             // MyAgent인지 확인
@@ -276,6 +281,18 @@ public class GameController : MonoBehaviour
                 // 점수를 -1로 설정 (사망 표시)
                 // SetScore(playerId, -1);
             }
+        }
+    }
+
+    private void ReattachCameraToPlayer1()
+    {
+        GameObject player1 = FindPlayerById(1);
+        if (player1 != null)
+        {
+            followingPlayerId = 1;
+            cameraFollowMode = true;
+            mainCamera.transform.parent = player1.transform;
+            mainCamera.transform.localPosition = new Vector3(0, 0, -10f);
         }
     }
 
