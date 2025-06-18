@@ -156,74 +156,13 @@ public class MyAgent : Agent
     {
         if (controller == null || mapManager == null)
         {
-            // 기본값으로 채워서 관찰 차원 맞추기 (45 + 625*2 + 9 + 10 + 5 + 15 = 1334차원)
-            for (int i = 0; i < 84; i++) sensor.AddObservation(0f);
+            for (int i = 0; i < 8; i++) sensor.AddObservation(0f);
             return;
         }
 
         int agentGridX = Mathf.RoundToInt(transform.localPosition.x);
         int agentGridY = Mathf.RoundToInt(transform.localPosition.y);
-        int myPlayerID = controller.playerID;// 1. **🔥 ULTRA CRITICAL - 3x3 즉시 위험 영역 (45차원) - 가중치 15배**
-
-        // // 2. **핵심: 주변 25x25 영역 관찰 (625*2 = 1250차원)**
-        // const int OBSERVATION_SIZE = 25;
-        // int halfSize = OBSERVATION_SIZE / 2; // 12
-
-        // // 2-1. TileStates 관찰 (625차원)
-        // for (int dy = -halfSize; dy <= halfSize; dy++)
-        // {
-        //     for (int dx = -halfSize; dx <= halfSize; dx++)
-        //     {
-        //         int worldX = agentGridX + dx;
-        //         int worldY = agentGridY + dy;
-        //         Vector2Int checkPos = new Vector2Int(worldX, worldY);
-
-        //         float tileValue;
-        //         if (!mapManager.InBounds(checkPos))
-        //         {
-        //             tileValue = -10f; // 경계 밖은 매우 큰 음수 (벽 표시)
-        //         }
-        //         else
-        //         {
-        //             int tileOwner = mapManager.GetTile(checkPos);
-        //             if (tileOwner == myPlayerID)
-        //                 tileValue = 1f; // 내 영역
-        //             else if (tileOwner == 0)
-        //                 tileValue = 0f; // 중립
-        //             else
-        //                 tileValue = -1f; // 상대방 영역
-        //         }
-        //         sensor.AddObservation(tileValue);
-        //     }
-        // }
-
-        // // 2-2. TrailStates 관찰 (625차원)
-        // for (int dy = -halfSize; dy <= halfSize; dy++)
-        // {
-        //     for (int dx = -halfSize; dx <= halfSize; dx++)
-        //     {
-        //         int worldX = agentGridX + dx;
-        //         int worldY = agentGridY + dy;
-        //         Vector2Int checkPos = new Vector2Int(worldX, worldY);
-
-        //         float trailValue;
-        //         if (!mapManager.InBounds(checkPos))
-        //         {
-        //             trailValue = -10f; // 경계 밖은 매우 큰 음수 (벽 표시)
-        //         }
-        //         else
-        //         {
-        //             int trailOwner = mapManager.GetTrail(checkPos);
-        //             if (trailOwner == myPlayerID)
-        //                 trailValue = 1f; // 내 궤적 (매우 위험!)
-        //             else if (trailOwner == 0)
-        //                 trailValue = 0f; // 궤적 없음
-        //             else
-        //                 trailValue = -1f; // 상대방 궤적
-        //         }
-        //         sensor.AddObservation(trailValue);
-        //     }
-        // }
+        int myPlayerID = controller.playerID;
 
         // 6. 기본 정보 (5차원)
         sensor.AddObservation(Mathf.Clamp01(agentGridX / 100f));
@@ -252,435 +191,6 @@ public class MyAgent : Agent
         // Debug.Log($"[MyAgent] 🎯 ULTRA 최적화된 관찰 완료 - 총 1334차원 (45핵심x5 + 625타일 + 625궤적 + 9근접 + 10위험 + 15적위협 + 5기본)");
     }
 
-    // **🔥 ULTRA: 3x3 영역의 초고중요도 정보 (9차원) - 모델이 중요도를 확실히 인식하도록**
-    private void AddUltraCritical3x3Observations(VectorSensor sensor, int myX, int myY, int myPlayerID)
-    {
-        // 3x3 영역을 정해진 순서로 관찰 (중앙부터 시작해서 시계방향)
-        Vector2Int[] positions = {
-            new Vector2Int(0, 0),   // 중앙 (현재 위치)
-            new Vector2Int(0, 1),   // 위
-            new Vector2Int(1, 1),   // 우상
-            new Vector2Int(1, 0),   // 우
-            new Vector2Int(1, -1),  // 우하
-            new Vector2Int(0, -1),  // 하
-            new Vector2Int(-1, -1), // 좌하
-            new Vector2Int(-1, 0),  // 좌
-            new Vector2Int(-1, 1)   // 좌상
-        };
-
-        foreach (var relativePos in positions)
-        {
-            Vector2Int checkPos = new Vector2Int(myX + relativePos.x, myY + relativePos.y);
-
-            float ultraCriticalValue = 0f;
-
-            if (!mapManager.InBounds(checkPos))
-            {
-                // 경계 = 절대 위험 (더욱 강화된 신호)
-                ultraCriticalValue = -2000f;
-            }
-            else
-            {
-                int tileOwner = mapManager.GetTile(checkPos);
-                int trailOwner = mapManager.GetTrail(checkPos);
-
-                // **EXTREME 우선순위: 자기 궤적 = 즉시 사망**
-                if (trailOwner == myPlayerID)
-                {
-                    // 모델이 절대 이 값을 무시할 수 없도록 극도로 큰 음수
-                    ultraCriticalValue = -5000f;
-                }
-                // **2순위: 다른 궤적 = 위험 (강화)**
-                else if (trailOwner != 0 && trailOwner != myPlayerID)
-                {
-                    ultraCriticalValue = -200f;
-                }
-                // **3순위: 안전 지역 구분 (강화된 양수 신호)**
-                else if (tileOwner == myPlayerID)
-                {
-                    ultraCriticalValue = 300f; // 내 영역 - 매우 안전 (강화)
-                }
-                else if (tileOwner == 0)
-                {
-                    ultraCriticalValue = 150f; // 중립 - 확장 기회 (강화)
-                }
-                else
-                {
-                    ultraCriticalValue = -50f; // 상대방 영역 - 조금 위험 (강화)
-                }
-            }
-
-            // 정규화하되 중요도를 극대화 (-5 ~ +3 범위로 강화)
-            sensor.AddObservation(Mathf.Clamp(ultraCriticalValue / 1000f, -5f, 3f));
-        }
-    }
-
-    // **🔥 NEW: 3x3 영역의 초고중요도 정보 (9차원)**
-    private void AddSuperCritical3x3Observations(VectorSensor sensor, int myX, int myY, int myPlayerID)
-    {
-        // 3x3 영역을 정해진 순서로 관찰 (중앙부터 시작해서 시계방향)
-        Vector2Int[] positions = {
-            new Vector2Int(0, 0),   // 중앙 (현재 위치)
-            new Vector2Int(0, 1),   // 위
-            new Vector2Int(1, 1),   // 우상
-            new Vector2Int(1, 0),   // 우
-            new Vector2Int(1, -1),  // 우하
-            new Vector2Int(0, -1),  // 하
-            new Vector2Int(-1, -1), // 좌하
-            new Vector2Int(-1, 0),  // 좌
-            new Vector2Int(-1, 1)   // 좌상
-        };
-
-        foreach (var relativePos in positions)
-        {
-            Vector2Int checkPos = new Vector2Int(myX + relativePos.x, myY + relativePos.y);
-
-            float superCriticalValue = 0f;
-
-            if (!mapManager.InBounds(checkPos))
-            {
-                superCriticalValue = -100f; // 경계 - 절대 위험
-            }
-            else
-            {
-                int tileOwner = mapManager.GetTile(checkPos);
-                int trailOwner = mapManager.GetTrail(checkPos);
-
-                // **최우선: 자기 궤적 = 즉시 사망**
-                if (trailOwner == myPlayerID)
-                {
-                    superCriticalValue = -1000f; // 절대 가면 안되는 곳!
-                }
-                // **2순위: 다른 궤적 = 위험**
-                else if (trailOwner != 0 && trailOwner != myPlayerID)
-                {
-                    superCriticalValue = -50f;
-                }
-                // **3순위: 안전 지역 구분**
-                else if (tileOwner == myPlayerID)
-                {
-                    superCriticalValue = 100f; // 내 영역 - 매우 안전
-                }
-                else if (tileOwner == 0)
-                {
-                    superCriticalValue = 50f; // 중립 - 확장 기회
-                }
-                else
-                {
-                    superCriticalValue = -10f; // 상대방 영역 - 조금 위험
-                }
-            }
-
-            sensor.AddObservation(superCriticalValue / 1000f); // 정규화
-        }
-    }
-
-    // **중요!** 근접 3x3 영역 - 생존에 가장 핵심적인 정보 (9차원)
-    private void AddCriticalProximityObservations(VectorSensor sensor, int myX, int myY, int myPlayerID)
-    {
-        // 3x3 영역의 각 타일을 개별적으로 관찰 (생존에 직접적 영향)
-        for (int y = -1; y <= 1; y++)
-        {
-            for (int x = -1; x <= 1; x++)
-            {
-                Vector2Int checkPos = new Vector2Int(myX + x, myY + y);
-
-                float criticalValue = 0f;
-
-                if (!mapManager.InBounds(checkPos))
-                {
-                    criticalValue = -2f; // 경계 밖 - 매우 위험
-                }
-                else
-                {
-                    // 타일 소유권 확인
-                    int tileOwner = mapManager.GetTile(checkPos);
-                    int trailOwner = mapManager.GetTrail(checkPos);
-
-                    // **생존 핵심 로직**: 내 궤적이 있으면 절대 위험
-                    if (trailOwner == myPlayerID)
-                    {
-                        criticalValue = -3f; // 내 궤적 - 절대 가면 안됨!
-                    }
-                    else if (trailOwner != 0 && trailOwner != myPlayerID)
-                    {
-                        criticalValue = -1f; // 다른 플레이어 궤적 - 위험
-                    }
-                    else if (tileOwner == myPlayerID)
-                    {
-                        criticalValue = 2f; // 내 영역 - 안전
-                    }
-                    else if (tileOwner == 0)
-                    {
-                        criticalValue = 1f; // 중립 - 확장 기회
-                    }
-                    else
-                    {
-                        criticalValue = -0.5f; // 다른 플레이어 영역
-                    }
-                }
-
-                sensor.AddObservation(criticalValue);
-            }
-        }
-    }
-
-    // 즉시 위험 감지 - 다음 스텝에서 일어날 수 있는 모든 위험 (10차원)
-    private void AddImmediateDangerObservations(VectorSensor sensor, int myX, int myY, int myPlayerID)
-    {
-        // 4방향 이동 시 즉시 위험도
-        Vector2Int[] directions = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
-
-        for (int i = 0; i < 4; i++)
-        {
-            Vector2Int nextPos = new Vector2Int(myX + directions[i].x, myY + directions[i].y);
-
-            float immediateRisk = 0f;
-
-            if (!mapManager.InBounds(nextPos))
-            {
-                immediateRisk = 1f; // 경계로 이동 - 즉시 사망
-            }
-            else
-            {
-                int trail = mapManager.GetTrail(nextPos);
-                if (trail == myPlayerID)
-                {
-                    immediateRisk = 1f; // 내 궤적으로 이동 - 즉시 사망
-                }
-                else if (trail != 0)
-                {
-                    immediateRisk = 0.8f; // 다른 궤적으로 이동 - 위험
-                }
-                else
-                {
-                    // 안전한 이동이지만 주변 확인
-                    int nearbyTrails = 0;
-                    for (int dx = -1; dx <= 1; dx++)
-                    {
-                        for (int dy = -1; dy <= 1; dy++)
-                        {
-                            Vector2Int checkPos = new Vector2Int(nextPos.x + dx, nextPos.y + dy);
-                            if (mapManager.InBounds(checkPos))
-                            {
-                                int checkTrail = mapManager.GetTrail(checkPos);
-                                if (checkTrail == myPlayerID) nearbyTrails++;
-                            }
-                        }
-                    }
-                    immediateRisk = Mathf.Clamp01(nearbyTrails / 8f); // 주변 궤적 밀도
-                }
-            }
-
-            sensor.AddObservation(immediateRisk);
-        }
-
-        // 추가 위험 지표들 (6차원)
-
-        // 현재 위치가 내 영역인지
-        Vector2Int currentPos = new Vector2Int(myX, myY);
-        bool inMyTerritory = mapManager.InBounds(currentPos) &&
-                           mapManager.GetTile(currentPos) == myPlayerID;
-        sensor.AddObservation(inMyTerritory ? 0f : 1f); // 영역 밖이면 위험
-
-        // 내 궤적의 총 길이 (위험도 증가)
-        int trailLength = 0;
-        for (int x = 0; x < 100; x++)
-        {
-            for (int y = 0; y < 100; y++)
-            {
-                if (mapManager.GetTrail(new Vector2Int(x, y)) == myPlayerID)
-                    trailLength++;
-            }
-        }
-        sensor.AddObservation(Mathf.Clamp01(trailLength / 200f)); // 정규화
-
-        // 가장 가까운 내 궤적까지의 거리
-        float closestTrailDistance = 999f;
-        for (int x = 0; x < 100; x++)
-        {
-            for (int y = 0; y < 100; y++)
-            {
-                if (mapManager.GetTrail(new Vector2Int(x, y)) == myPlayerID)
-                {
-                    float distance = Vector2.Distance(new Vector2(myX, myY), new Vector2(x, y));
-                    closestTrailDistance = Mathf.Min(closestTrailDistance, distance);
-                }
-            }
-        }
-        sensor.AddObservation(Mathf.Clamp01(closestTrailDistance / 50f)); // 정규화
-
-        // 현재 방향으로 계속 가면 위험한지
-        Vector2Int currentDirection = controller.direction;
-        Vector2Int projectedPos = new Vector2Int(myX + currentDirection.x, myY + currentDirection.y);
-        float projectedRisk = 0f;
-        if (!mapManager.InBounds(projectedPos) ||
-            mapManager.GetTrail(projectedPos) == myPlayerID)
-        {
-            projectedRisk = 1f;
-        }
-        sensor.AddObservation(projectedRisk);
-
-        // 탈출 가능한 방향의 수
-        int escapePaths = 0;
-        foreach (var dir in directions)
-        {
-            Vector2Int escapePos = new Vector2Int(myX + dir.x, myY + dir.y);
-            if (mapManager.InBounds(escapePos) &&
-                mapManager.GetTrail(escapePos) != myPlayerID)
-            {
-                escapePaths++;
-            }
-        }
-        sensor.AddObservation(escapePaths / 4f); // 0~1로 정규화
-
-        // 주변 8방향 중 안전한 곳의 비율
-        int safeCells = 0;
-        for (int dx = -1; dx <= 1; dx++)
-        {
-            for (int dy = -1; dy <= 1; dy++)
-            {
-                if (dx == 0 && dy == 0) continue;
-                Vector2Int checkPos = new Vector2Int(myX + dx, myY + dy);
-                if (mapManager.InBounds(checkPos) &&
-                    mapManager.GetTrail(checkPos) != myPlayerID)
-                {
-                    safeCells++;
-                }
-            }
-        }
-        sensor.AddObservation(safeCells / 8f); // 0~1로 정규화
-    }
-
-    // **🚨 NEW: 적 위협 평가 시스템 - 적이 내 궤적을 끊기 전에 안전지대 도달 가능 여부 (15차원)**
-    private void AddEnemyThreatAssessment(VectorSensor sensor, int myX, int myY, int myPlayerID)
-    {
-        // 모든 적 플레이어 찾기
-        BasePlayerController[] allPlayers = UnityEngine.Object.FindObjectsByType<BasePlayerController>(FindObjectsSortMode.None);
-
-        Vector2Int myPos = new Vector2Int(myX, myY);
-        bool isInMyTerritory = mapManager.InBounds(myPos) && mapManager.GetTile(myPos) == myPlayerID;
-
-        // 내가 안전지대에 있으면 위협 없음
-        if (isInMyTerritory)
-        {
-            for (int i = 0; i < 15; i++) sensor.AddObservation(0f);
-            return;
-        }
-
-        // 가장 가까운 내 영역까지의 최단 거리 계산
-        int myDistanceToSafety = CalculateDistanceToMyTerritory(myPos, myPlayerID);
-
-        // 내 현재 궤적 위치들 수집
-        List<Vector2Int> myTrailPositions = GetMyTrailPositions(myPlayerID);
-
-        float maxThreatLevel = 0f;
-        Vector2Int nearestEnemyPos = Vector2Int.zero;
-        float nearestEnemyDistance = 999f;
-        float fastestInterceptTime = 999f;
-
-        // 시야 제한: 25x25 영역 (시야 밖은 거리 상한 12.5로 제한)
-        const int VISION_RANGE = 12; // 25x25 영역의 반경
-        const float MAX_VISION_DISTANCE = 12.5f;
-
-        foreach (var enemy in allPlayers)
-        {
-            if (enemy == null || enemy.gameObject == gameObject) continue;
-
-            var enemyTracker = enemy.GetComponent<CornerPointTracker>();
-            if (enemyTracker == null || enemyTracker.playerId == myPlayerID) continue;
-
-            Vector2Int enemyPos = new Vector2Int(
-                Mathf.RoundToInt(enemy.transform.position.x),
-                Mathf.RoundToInt(enemy.transform.position.y)
-            );
-
-            // 적과의 거리 (시야 제한 적용)
-            float distanceToEnemy = Vector2.Distance(myPos, enemyPos);
-
-            // 시야 밖의 적은 거리를 상한값으로 제한
-            bool isInVision = Mathf.Abs(enemyPos.x - myX) <= VISION_RANGE && Mathf.Abs(enemyPos.y - myY) <= VISION_RANGE;
-            if (!isInVision)
-            {
-                distanceToEnemy = Mathf.Min(distanceToEnemy, MAX_VISION_DISTANCE);
-            }
-
-            if (distanceToEnemy < nearestEnemyDistance)
-            {
-                nearestEnemyDistance = distanceToEnemy;
-                nearestEnemyPos = enemyPos;
-            }
-
-            // 적이 내 궤적을 끊을 수 있는 최단 시간 계산
-            if (myTrailPositions.Count > 0)
-            {
-                float minInterceptTime = CalculateMinInterceptTime(enemyPos, myTrailPositions, isInVision);
-                if (minInterceptTime < fastestInterceptTime)
-                {
-                    fastestInterceptTime = minInterceptTime;
-                }
-
-                // 위협 수준 계산: 적이 내 궤적을 끊기 전에 내가 안전지대에 도달 가능한가?
-                float threatLevel = CalculateThreatLevel(myDistanceToSafety, minInterceptTime, distanceToEnemy);
-                maxThreatLevel = Mathf.Max(maxThreatLevel, threatLevel);
-            }
-        }
-
-        // 15차원 관찰 데이터 추가
-        sensor.AddObservation(Mathf.Clamp01(maxThreatLevel)); // 전체 위협 수준 (0~1)
-        sensor.AddObservation(Mathf.Clamp01(myDistanceToSafety / 50f)); // 안전지대까지 거리 정규화
-        sensor.AddObservation(Mathf.Clamp01(nearestEnemyDistance / 50f)); // 가장 가까운 적까지 거리
-        sensor.AddObservation(Mathf.Clamp01(fastestInterceptTime / 20f)); // 가장 빠른 차단 시간
-        sensor.AddObservation(myTrailPositions.Count / 100f); // 내 궤적 길이 정규화
-
-        // 4방향별 위험도 (상/우/하/좌)
-        Vector2Int[] directions = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
-        for (int i = 0; i < 4; i++)
-        {
-            Vector2Int nextPos = myPos + directions[i];
-            float directionThreat = CalculateDirectionThreat(nextPos, nearestEnemyPos, myPlayerID);
-            sensor.AddObservation(directionThreat);
-        }
-
-        // 즉시 대피 필요성 (위험 임계점 도달 시 1.0)
-        bool needImmediateRetreat = maxThreatLevel > 0.7f && myDistanceToSafety < fastestInterceptTime;
-        sensor.AddObservation(needImmediateRetreat ? 1f : 0f);
-
-        // 적의 방향성 정보 (적이 나를 향해 오고 있는가?)
-        Vector2Int directionToMe = myPos - nearestEnemyPos;
-        sensor.AddObservation(Mathf.Clamp(directionToMe.x / 10f, -1f, 1f));
-        sensor.AddObservation(Mathf.Clamp(directionToMe.y / 10f, -1f, 1f));        // 궤적 밀도 위험도 (궤적이 길수록 더 위험)
-        float trailDensityRisk = myTrailPositions.Count > 10 ? 1f : myTrailPositions.Count / 10f;
-        sensor.AddObservation(trailDensityRisk);
-
-        // 안전지대 접근 각도 최적성 (직선 경로 vs 우회 경로)
-        float pathOptimality = CalculatePathOptimality(myPos, myPlayerID);
-        sensor.AddObservation(pathOptimality);
-
-        // 15번째: 전체 상황 복합 위험도 (여러 요소 결합)
-        float overallRisk = (maxThreatLevel + trailDensityRisk) / 2f;
-        sensor.AddObservation(overallRisk);
-    }
-
-    // 내 영역까지의 최단 거리 계산 (A* 알고리즘 간소화 버전)
-    private int CalculateDistanceToMyTerritory(Vector2Int startPos, int myPlayerID)
-    {
-        // 가장 가까운 내 영역 찾기
-        int minDistance = 999;
-        for (int x = Mathf.Max(0, startPos.x - 25); x <= Mathf.Min(99, startPos.x + 25); x++)
-        {
-            for (int y = Mathf.Max(0, startPos.y - 25); y <= Mathf.Min(99, startPos.y + 25); y++)
-            {
-                Vector2Int checkPos = new Vector2Int(x, y);
-                if (mapManager.GetTile(checkPos) == myPlayerID)
-                {
-                    int distance = Mathf.Abs(startPos.x - x) + Mathf.Abs(startPos.y - y); // 맨하탄 거리
-                    minDistance = Mathf.Min(minDistance, distance);
-                }
-            }
-        }
-        return minDistance;
-    }
 
     // 내 궤적 위치들 수집
     private List<Vector2Int> GetMyTrailPositions(int myPlayerID)
@@ -699,87 +209,7 @@ public class MyAgent : Agent
         }
         return positions;
     }
-    // 적이 내 궤적을 끊을 수 있는 최단 시간 계산 (시야 제한 고려)
-    private float CalculateMinInterceptTime(Vector2Int enemyPos, List<Vector2Int> myTrailPositions, bool isInVision)
-    {
-        float minTime = 999f;
-        foreach (var trailPos in myTrailPositions)
-        {
-            float distance = Vector2.Distance(enemyPos, trailPos);
 
-            // 시야 밖의 적은 거리에 불확실성 추가
-            if (!isInVision)
-            {
-                distance = Mathf.Min(distance, 12.5f); // 최대 거리 제한
-            }
-
-            minTime = Mathf.Min(minTime, distance); // 1칸당 1턴 가정
-        }
-        return minTime;
-    }
-
-    // 위협 수준 계산 (0~1, 1이 최고 위험)
-    private float CalculateThreatLevel(int myDistanceToSafety, float enemyInterceptTime, float enemyDistance)
-    {
-        // 적이 내 궤적을 끊기 전에 내가 안전지대에 도달 가능한가?
-        if (myDistanceToSafety >= enemyInterceptTime)
-        {
-            // 위험: 적이 더 빠르게 차단 가능
-            float urgency = 1f - (enemyInterceptTime - myDistanceToSafety) / 10f;
-            return Mathf.Clamp01(urgency);
-        }
-        else
-        {
-            // 안전: 내가 먼저 도달 가능
-            return Mathf.Clamp01(0.3f - (myDistanceToSafety - enemyInterceptTime) / 20f);
-        }
-    }
-
-    // 특정 방향으로 이동 시 위험도 계산
-    private float CalculateDirectionThreat(Vector2Int nextPos, Vector2Int enemyPos, int myPlayerID)
-    {
-        if (!mapManager.InBounds(nextPos)) return 1f; // 경계 밖은 최고 위험
-
-        float threat = 0f;
-
-        // 적과 가까워지면 위험 증가
-        float distanceToEnemy = Vector2.Distance(nextPos, enemyPos);
-        if (distanceToEnemy < 5f) threat += (5f - distanceToEnemy) / 5f * 0.5f;
-
-        // 내 궤적이 있으면 즉시 사망
-        if (mapManager.GetTrail(nextPos) == myPlayerID) threat = 1f;
-
-        // 적의 영역이면 위험 증가
-        int tileOwner = mapManager.GetTile(nextPos);
-        if (tileOwner != 0 && tileOwner != myPlayerID) threat += 0.3f;
-
-        return Mathf.Clamp01(threat);
-    }
-
-    // 안전지대로의 경로 최적성 계산
-    private float CalculatePathOptimality(Vector2Int myPos, int myPlayerID)
-    {
-        // 직선 경로와 실제 필요 이동 비교
-        int straightLineDistance = CalculateDistanceToMyTerritory(myPos, myPlayerID);
-
-        // 장애물 회피 필요성 체크
-        Vector2Int[] directions = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
-        int blockedDirections = 0;
-
-        foreach (var dir in directions)
-        {
-            Vector2Int checkPos = myPos + dir;
-            if (!mapManager.InBounds(checkPos) ||
-                mapManager.GetTrail(checkPos) == myPlayerID ||
-                mapManager.GetTrail(checkPos) != 0)
-            {
-                blockedDirections++;
-            }
-        }
-
-        // 막힌 방향이 많을수록 경로가 비최적
-        return 1f - (blockedDirections / 4f);
-    }
     public void NotifyDeath()
     {
         if (!isDead) // 중복 호출 방지
@@ -790,77 +220,6 @@ public class MyAgent : Agent
             Invoke(nameof(DelayedEndEpisode), 0.1f);
         }
     }
-
-    // // **🚨 NEW: 영역 완성 감지 및 보상 시스템**
-    // public void NotifyTerritoryCompletion(int gainedTiles)
-    // {
-    //     if (gainedTiles > 0)
-    //     {
-    //         // 📈 획득한 타일 수에 비례하는 압도적인 보상 시스템
-    //         float territoryReward = gainedTiles * 1.5f; // 기본 생존 보상(0.01f) 대비 150배 강력
-
-    //         // 🎯 대규모 영역 확보 시 추가 보너스
-    //         if (gainedTiles >= 50)
-    //         {
-    //             territoryReward += 25.0f; // 대규모 확장 보너스
-    //             // Debug.Log($"[MyAgent] 🏆 MASSIVE TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 대규모 보너스!");
-    //         }
-    //         else if (gainedTiles >= 20)
-    //         {
-    //             territoryReward += 10.0f; // 중규모 확장 보너스
-    //             // Debug.Log($"[MyAgent] 🎖️ LARGE TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 중규모 보너스!");
-    //         }
-    //         else if (gainedTiles >= 10)
-    //         {
-    //             territoryReward += 5.0f; // 소규모 확장 보너스
-    //             // Debug.Log($"[MyAgent] 🥇 GOOD TERRITORY! Player {controller?.playerID}: {gainedTiles} 타일 확보 + 소규모 보너스!");
-    //         }
-
-    //         AddReward(territoryReward);
-    //         // Debug.Log($"[MyAgent] 💰 TERRITORY REWARD! Player {controller?.playerID}: " +
-    //         //          $"획득 타일 {gainedTiles}개 → 보상 {territoryReward:F2}점!");
-
-    //         // 🎯 연속 영역 확보 감지 및 추가 보상
-    //         RegisterTerritoryExpansion(gainedTiles);
-    //     }
-    // }    // **🚨 NEW: 연속 영역 확보 추적 및 효율성 보상**
-    // private int consecutiveTerritoryGains = 0;
-    // private float lastTerritoryTime = 0f;
-    // private int totalTerritoryGainedThisEpisode = 0;
-
-    // // **🚨 NEW: 플레이어 ID 확인용 public 프로퍼티**
-    // public int PlayerID => controller?.playerID ?? -1;
-
-    // private void RegisterTerritoryExpansion(int gainedTiles)
-    // {
-    //     totalTerritoryGainedThisEpisode += gainedTiles;
-
-    //     // 빠른 연속 영역 확보 감지 (30초 이내)
-    //     if (Time.time - lastTerritoryTime < 30f)
-    //     {
-    //         consecutiveTerritoryGains++;
-
-    //         // 연속 확장 보너스
-    //         float consecutiveBonus = consecutiveTerritoryGains * 2.0f;
-    //         AddReward(consecutiveBonus);
-    //         // Debug.Log($"[MyAgent] 🔥 CONSECUTIVE EXPANSION! Player {controller?.playerID}: " +
-    //         //          $"연속 {consecutiveTerritoryGains}회 → 추가 보상 {consecutiveBonus:F2}점!");
-    //     }
-    //     else
-    //     {
-    //         consecutiveTerritoryGains = 1; // 첫 번째 확장으로 초기화
-    //     }
-
-    //     lastTerritoryTime = Time.time;
-
-    //     // 에피소드 총 영역 확보 성과 보상
-    //     if (totalTerritoryGainedThisEpisode >= 100)
-    //     {
-    //         AddReward(15.0f); // 에피소드 내 100 타일 이상 확보 시 특별 보상
-    //         // Debug.Log($"[MyAgent] 👑 EPISODE MASTER! Player {controller?.playerID}: " +
-    //         //          $"총 {totalTerritoryGainedThisEpisode} 타일 확보!");
-    //     }
-    // }
 
     private void DelayedEndEpisode()
     {
@@ -882,12 +241,12 @@ public class MyAgent : Agent
 
             // 현재 자신의 영역 밖에 있는지 확인
             bool isOutsideTerritory = mapManager.GetTile(currentPos) != controller.playerID;
-            
+
             if (isOutsideTerritory)
             {
                 // 가장 가까운 자신의 영역 찾기
                 Vector2Int nearestTerritory = FindNearestOwnTerritory(currentPos);
-                
+
                 // 현재 위치에서 가장 가까운 영역으로의 방향
                 Vector2Int directionToTerritory = new Vector2Int(
                     Mathf.Clamp(nearestTerritory.x - currentPos.x, -1, 1),
@@ -898,7 +257,7 @@ public class MyAgent : Agent
                 Vector2 dirVector = new Vector2(newDirection.x, newDirection.y);
                 Vector2 targetVector = new Vector2(directionToTerritory.x, directionToTerritory.y).normalized;
                 float alignment = Vector2.Dot(dirVector, targetVector);
-                
+
                 // 올바른 방향으로 이동하면 보상 (1에 가까울수록 정확한 방향)
                 if (alignment > 0)
                 {
@@ -910,8 +269,8 @@ public class MyAgent : Agent
             if (!mapManager.InBounds(nextPos))
             {
                 // 벽으로 이동하려는 시도 - 초보적 실수에 강한 페널티
-                // AddReward(-1.0f); // 벽 충돌 시도는 초보적 실수
-                                   // Debug.LogWarning($"[MyAgent] 🚨 벽 충돌 시도 차단! 현재: {currentPos}, 시도: {nextPos}");
+                AddReward(-0.2f); // 벽 충돌 시도는 초보적 실수
+                                  // Debug.LogWarning($"[MyAgent] 🚨 벽 충돌 시도 차단! 현재: {currentPos}, 시도: {nextPos}");
 
                 // 안전한 방향 찾아서 강제 변경
                 Vector2Int safeDirection = FindSafeDirectionFromWall(currentPos);
@@ -936,7 +295,7 @@ public class MyAgent : Agent
                 {
                     // 자기 궤적 충돌 시도 - 가장 초보적인 실수에 강한 페널티
                     // AddReward(-2.0f); // 자기 궤적 충돌 시도는 가장 기본적인 실수
-                                       // Debug.LogWarning($"[MyAgent] 💀 자기 궤적 충돌 시도 차단! 현재: {currentPos}, 시도: {nextPos}");
+                    // Debug.LogWarning($"[MyAgent] 💀 자기 궤적 충돌 시도 차단! 현재: {currentPos}, 시도: {nextPos}");
 
                     // 안전한 방향 찾아서 강제 변경
                     Vector2Int safeDirection = FindSafeDirectionFromTrail(currentPos);
@@ -1033,11 +392,6 @@ public class MyAgent : Agent
     {
         Vector2Int nextPos = currentPos + dir;
 
-        // ✅ 7. 승부 의식 기반 보상
-        int myScore = mapManager.GetOwnedTileCount(controller.playerID);
-        int rank = GetMyRankAmongPlayers(myScore);
-
-
         // 0. 자기 영역 안에 너무 오래 머물면 감점
         bool currentlyInOwnTerritory = mapManager.InBounds(currentPos) &&
                                        mapManager.GetTile(currentPos) == controller.playerID;
@@ -1046,73 +400,71 @@ public class MyAgent : Agent
             AddReward(-0.2f); // 안전지대에 너무 오래 머물면 페널티
         }
 
-        // 1. 위협 상황에서 귀환 성공 시 보상
-        bool isInSafeZone = mapManager.InBounds(nextPos) && mapManager.GetTile(nextPos) == controller.playerID;
-        if (isInSafeZone)
+        if (mapManager.InBounds(nextPos))
         {
-            AddReward(-0.1f); // 안전지대 페널티
-        }
+            // ✅ 7. 승부 의식 기반 보상
+            int myScore = mapManager.GetOwnedTileCount(controller.playerID);
+            int rank = GetMyRankAmongPlayers(myScore);
 
-
-        if (lastThreatLevel > 0.7f && isInSafeZone)
-        {
-            // 위협 상황에서 안전지대로 귀환 성공
-            AddReward(+1.0f); // 승부 의식 보상 (최대 보상)
-        }
-
-        // 2. 적극적 플레이 장려 보상
-        bool isLeavingSafeZone = currentlyInOwnTerritory && !isInSafeZone;
-        if (isLeavingSafeZone)
-        {
-            AddReward(+0.3f); // 안전지대를 벗어나는 것에 대한 보상
-        }
-
-        // 3. trail이 너무 길고 오래 유지되었는데 아직도 안 닫았다면 패널티
-        if (trailIsOpen && lastTrailLength > 40 && (Time.time - trailStartTime) > 10f)
-        {
-            // AddReward(-0.0015f * (1 + (4 - rank) * 0.1f));
-        }
-
-        // 4. 적 근처에서 회피 성공했는지 체크
-        float enemyDistance = EstimateNearestEnemyDistance(currentPos);
-        if (enemyDistance < 3f && isInSafeZone)
-        {
-            AddReward(+0.1f * (1 + (4 - rank) * 0.1f)); // 10배 스케일링: +0.01f → +0.1f
-        }
-
-        // ✅ 5. 점유율 변화량 보상
-        int currentOwned = CountOwnedTiles(controller.playerID);
-        int delta = currentOwned - prevOwnedTileCount;
-        if (delta > 0)
-        {
-
-            float trailDuration = Time.time - trailStartTime;
-            if (lastTrailLength > 10 && trailDuration > 5f)
+            // 1. 위협 상황에서 귀환 성공 시 보상
+            bool isInSafeZone = mapManager.InBounds(nextPos) && mapManager.GetTile(nextPos) == controller.playerID;
+            if (isInSafeZone)
             {
-                AddReward(0.5f * delta); // 점령 보상
+                AddReward(-0.1f); // 안전지대 페널티
             }
-            else
+
+            // 2. 적극적 플레이 장려 보상
+            bool isLeavingSafeZone = currentlyInOwnTerritory && !isInSafeZone;
+            if (isLeavingSafeZone)
             {
-                AddReward(0.25f * delta); // 점령 보상 (적은 영역)
+                AddReward(+0.3f); // 안전지대를 벗어나는 것에 대한 보상
+            }
+
+            // 3. trail이 너무 길고 오래 유지되었는데 아직도 안 닫았다면 패널티
+            if (trailIsOpen && lastTrailLength > 40)
+            {
+                AddReward(-0.05f);
+            }
+
+            // 4. 적 근처에서 회피 성공했는지 체크
+            float enemyDistance = EstimateNearestEnemyDistance(currentPos);
+            if (enemyDistance < 3f && isInSafeZone)
+            {
+                AddReward(+0.1f * (1 + (4 - rank) * 0.1f)); // 10배 스케일링: +0.01f → +0.1f
+            }
+
+            // ✅ 5. 점유율 변화량 보상
+            int currentOwned = CountOwnedTiles(controller.playerID);
+            int delta = currentOwned - prevOwnedTileCount;
+            if (delta > 0)
+            {
+
+                float trailDuration = Time.time - trailStartTime;
+                if (lastTrailLength > 10 && trailDuration > 5f)
+                {
+                    AddReward(0.5f * delta); // 점령 보상
+                }
+                else
+                {
+                    AddReward(0.25f * delta); // 점령 보상 (적은 영역)
+                }
+            }
+            else if (delta < 0)
+                AddReward(-0.25f * Mathf.Abs(delta)); // 점령 손실 페널티
+            prevOwnedTileCount = currentOwned;
+
+            // ✅ 6. 전략적 공격 보상: 적 trail 차단
+            int trailOwner = mapManager.GetTrail(nextPos);
+            if (trailOwner != 0 && trailOwner != controller.playerID)
+            {
+                // 상대방의 점수만큼 보상
+                float reward = 0.25f * mapManager.GetOwnedTileCount(trailOwner);
+                AddReward(reward);
+
+                // 디버깅 로그(optional)
+                // Debug.Log($"🔥 적 trail 차단! 대상 ID: {trailOwner}, 보상: {reward:F2}");
             }
         }
-        else if (delta < 0)
-            AddReward(-0.25f * Mathf.Abs(delta)); // 점령 손실 페널티
-        prevOwnedTileCount = currentOwned;
-
-        // ✅ 6. 전략적 공격 보상: 적 trail 차단
-        int trailOwner = mapManager.GetTrail(nextPos);
-        if (trailOwner != 0 && trailOwner != controller.playerID)
-        {
-            // 상대방의 점수만큼 보상
-            // float reward = 50f * mapManager.GetOwnedTileCount(trailOwner);
-            // AddReward(reward);
-
-            // 디버깅 로그(optional)
-            // Debug.Log($"🔥 적 trail 차단! 대상 ID: {trailOwner}, 보상: {reward:F2}");
-        }
-
-
 
         // 상태 업데이트
         lastTrailLength = CountTrailTiles(controller.playerID);
@@ -1294,7 +646,7 @@ public class MyAgent : Agent
     {
         Vector2Int nearest = currentPos;
         float minDistance = float.MaxValue;
-        
+
         // 적절한 탐색 범위 설정 (현재 위치에서 상하좌우 20칸)
         int searchRange = 20;
         int startX = Mathf.Max(0, currentPos.x - searchRange);
