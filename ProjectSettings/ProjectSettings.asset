@@ -765,11 +765,11 @@ PlayerSettings:
   captureStartupLogs: {}
   activeInputHandler: 2
   windowsGamepadBackendHint: 0
-  cloudProjectId: ec645fd0-3c86-4563-a6ea-1d5978a8918e
+  cloudProjectId: 876671f8-f2f7-4628-a262-f9ce76206659
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
-  projectName: PaperIOAgents
-  organizationId: unity_1a2a3a9592
+  projectName: KimchiRun
+  organizationId: bigbiggeon
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0
   hmiLoadingImage: {fileID: 0}

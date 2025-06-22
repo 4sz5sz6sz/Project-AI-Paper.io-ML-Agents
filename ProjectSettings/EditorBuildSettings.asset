@@ -26,6 +26,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/JM.unity
     guid: 026cfd96115807f4ea9270cf03fe3421
+  - enabled: 1
+    path: Assets/NGO_Minimal_Setup/NGO_Setup.unity
+    guid: 87a6c29c13b629543a23258678345b99
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
     com.unity.ml-agents.settings: {fileID: 11400000, guid: 72dc1e60ec3f04d408e9a5a8c95a088d, type: 2}
