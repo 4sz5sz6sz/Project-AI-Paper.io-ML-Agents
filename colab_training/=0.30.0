@@ -1,13 +1,1 @@
 Defaulting to user installation because normal site-packages is not writeable
-Collecting mlagents
-  Downloading mlagents-0.28.0-py3-none-any.whl.metadata
-     - 2.5 kB ? 0:00:00
-Collecting grpcio>=1.11.0 (from mlagents)
-  Downloading grpcio-1.73.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata
-     - 3.8 kB ? 0:00:00
-Collecting h5py>=2.9.0 (from mlagents)
-  Downloading h5py-3.14.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata
-     - 2.7 kB ? 0:00:00
-Collecting mlagents-envs==0.28.0 (from mlagents)
-  Downloading mlagents_envs-0.28.0-py3-none-any.whl.metadata
-     - 816 bytes ? 0:00:00
