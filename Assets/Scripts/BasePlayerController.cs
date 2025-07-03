@@ -93,39 +93,19 @@ public abstract class BasePlayerController : MonoBehaviour
         {
             mapManager.RespawnPlayerTerritory(cornerTracker.playerId, newPosition);
         }        // AI는 2초, 플레이어는 1초 딜레이
-        // 스프라이트 투명도 설정
-        var renderers = GetComponentsInChildren<SpriteRenderer>();
         if (cornerTracker?.playerId == 1)
         {
             Invoke("EnableMovement", 1f); // 플레이어는 1초
-            // 플레이어는 투명도 변경 없음
         }
         else
         {
-            // AI는 50% 투명도로 설정
-            foreach (var renderer in renderers)
-            {
-                var color = renderer.color;
-                color.a = 0.5f;  // 50% 투명도
-                renderer.color = color;
-            }
             Invoke("EnableMovement", 2f); // AI는 2초
         }
-    }    private void EnableMovement()
+    }
+
+    private void EnableMovement()
     {
         isRespawningNow = false;
-        
-        // AI 플레이어의 경우 투명도 원복
-        if (cornerTracker?.playerId != 1)
-        {
-            var renderers = GetComponentsInChildren<SpriteRenderer>();
-            foreach (var renderer in renderers)
-            {
-                var color = renderer.color;
-                color.a = 1f;  // 완전 불투명으로 복구
-                renderer.color = color;
-            }
-        }
     }
 
     // PlayerController.cs의 Update() 함수에 대응
