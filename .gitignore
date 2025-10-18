@@ -77,3 +77,14 @@ Assets/ML-Agents/Timers/
 /Assets/ML-Agents/Timers
 /Assets/ML-Agents/Timers
 Assets/ML-Agents/Timers/JW_timers.json
+
+# Python Colab Training Environment
+colab_training/__pycache__/
+colab_training/.pytest_cache/
+colab_training/models/
+colab_training/runs/
+colab_training/*.png
+colab_training/*.gif
+colab_training/*.log
+*.pyc
+__pycache__/
