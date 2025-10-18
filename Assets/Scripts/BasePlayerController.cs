@@ -5,6 +5,8 @@ using UnityEngine.InputSystem;
 public abstract class BasePlayerController : MonoBehaviour
 {
     // PlayerController.cs의 변수들과 대응
+
+    public bool isRespawningNow = false; 
     public float moveSpeed = 15f;
     public bool isMainPlayer = false; // 새로 추가된 변수
 
@@ -61,28 +63,20 @@ public abstract class BasePlayerController : MonoBehaviour
     /// 플레이어를 완전히 새로 스폰시킵니다 (ML-Agent 재시작용)
     /// </summary>
     public virtual void FullRespawn(Vector2Int newPosition)
-    {
-        // Debug.Log($"플레이어 {cornerTracker?.playerId} 완전 재스폰 시작: 위치 {newPosition}");
-
-        // 1. 위치 이동
+    {        // 모든 플레이어에 대해 리스폰 딜레이 적용
+        isRespawningNow = true;
+        
+        // 기존 리스폰 로직 실행
         gridPosition = newPosition;
         transform.position = new Vector3(gridPosition.x, gridPosition.y, -1f);
         targetPosition = transform.position;
-
-        // 2. 이동 상태 초기화
         direction = Vector2Int.zero;
         queuedDirection = Vector2Int.zero;
         isMoving = false;
-        wasInsideOwnedArea = true; // 새로 스폰될 때는 자신의 영토에서 시작
+        wasInsideOwnedArea = true;
 
-        // 3. 궤적 초기화 이거 있어야댐 보이는 궤적을 초기화하는 것
-        // if (trail != null)
-        // {
-        //     trail.ResetTrail();
-        //     trail.trailActive = false; // 새로 스폰될 때는 궤적 비활성화
-        // }
         trail.ResetTrail();
-        trail.trailActive = false; // 새로 스폰될 때는 궤적 비활성화
+        trail.trailActive = false;
 
         if (mapManager != null)
         {
@@ -90,19 +84,48 @@ public abstract class BasePlayerController : MonoBehaviour
             mapManager.ClearPlayerTerritory(cornerTracker?.playerId ?? -1);
         }
 
-        // 4. 코너 포인트 초기화
         if (cornerTracker != null)
         {
             cornerTracker.Clear();
         }
 
-        // 5. 맵에서 새 영토 생성
         if (mapManager != null && cornerTracker != null)
         {
             mapManager.RespawnPlayerTerritory(cornerTracker.playerId, newPosition);
+        }        // AI는 2초, 플레이어는 1초 딜레이
+        // 스프라이트 투명도 설정
+        var renderers = GetComponentsInChildren<SpriteRenderer>();
+        if (cornerTracker?.playerId == 1)
+        {
+            Invoke("EnableMovement", 1f); // 플레이어는 1초
+            // 플레이어는 투명도 변경 없음
         }
-
-        // Debug.Log($"플레이어 {cornerTracker?.playerId} 완전 재스폰 완료");
+        else
+        {
+            // AI는 50% 투명도로 설정
+            foreach (var renderer in renderers)
+            {
+                var color = renderer.color;
+                color.a = 0.5f;  // 50% 투명도
+                renderer.color = color;
+            }
+            Invoke("EnableMovement", 2f); // AI는 2초
+        }
+    }    private void EnableMovement()
+    {
+        isRespawningNow = false;
+        
+        // AI 플레이어의 경우 투명도 원복
+        if (cornerTracker?.playerId != 1)
+        {
+            var renderers = GetComponentsInChildren<SpriteRenderer>();
+            foreach (var renderer in renderers)
+            {
+                var color = renderer.color;
+                color.a = 1f;  // 완전 불투명으로 복구
+                renderer.color = color;
+            }
+        }
     }
 
     // PlayerController.cs의 Update() 함수에 대응
@@ -121,16 +144,16 @@ public abstract class BasePlayerController : MonoBehaviour
         switch (playerId)
         {
             case 1:
-                spawnPos = new Vector2Int(5, 5);
+                spawnPos = new Vector2Int(30, 30);
                 break;
             case 2:
-                spawnPos = new Vector2Int(55, 20);
+                spawnPos = new Vector2Int(30, 70);
                 break;
             case 3:
-                spawnPos = new Vector2Int(45, 35);
+                spawnPos = new Vector2Int(70, 30);
                 break;
             case 4:
-                spawnPos = new Vector2Int(25, 25);
+                spawnPos = new Vector2Int(70, 70);
                 break;
             default:
                 spawnPos = new Vector2Int(70, 20); // 예외 처리용 중앙 스폰
@@ -142,6 +165,8 @@ public abstract class BasePlayerController : MonoBehaviour
     // PlayerController.cs의 이동 처리 로직을 분리
     protected virtual void HandleMovement()
     {
+        if (isRespawningNow) return; // 리스폰 중이면 움직임 처리하지 않음
+
         HandleInput();        // 방향이 바뀔 때만 코너 저장 (180도 회전 제한 제거)
         if (agent == null && cornerTracker?.playerId != 1) // 플레이어 1은 ML-Agent가 아니므로 예외 처리
         {
