@@ -20,7 +20,7 @@ public class MyAgent : Agent
     };    // **이동 히스토리 추적 (간소화된 패턴 감지용)**
     private Queue<Vector2Int> directionHistory = new Queue<Vector2Int>();
     private Queue<Vector2Int> positionHistory = new Queue<Vector2Int>();
-    private const int HISTORY_SIZE = 4; // 8에서 4로 줄임 - 더 유연한 이동 허용
+    private const int HISTORY_SIZE = 4;
 
     private bool isDead = false;
     private const int MAX_STEPS_WITHOUT_PROGRESS = 500;
@@ -28,7 +28,7 @@ public class MyAgent : Agent
     private float previousScore = 0f;
     private Vector2Int previousPosition = Vector2Int.zero;
 
-    // **🚨 NEW: 영역 확보 추적 변수들**
+    // **영역 확보 추적 변수들**
     private float lastThreatLevel;
     private int lastTrailLength;
     private float trailStartTime;
@@ -49,7 +49,7 @@ public class MyAgent : Agent
         controller = GetComponent<AIPlayerController>();
         gameManager = GameController.Instance;
 
-        // Debug.Log("[MyAgent] Initialize 완료 - 🎯 3x3 중심 ULTRA 최적화 관찰 시스템 (1,319차원)");
+        // Debug.Log("[MyAgent] Initialize 완료 - Camera Sensor (84x84 이미지) + Vector 8차원");
     }
     public override void OnEpisodeBegin()
     {
@@ -57,7 +57,7 @@ public class MyAgent : Agent
 
         // **상태 초기화**
 
-        //영역 관찰 변수 초기화 myagent보상함수와 연동할 때 필요
+        // 영역 추적 변수 초기화
         lastThreatLevel = 0f;
         lastTrailLength = 0;
         trailStartTime = 0f;
@@ -67,11 +67,6 @@ public class MyAgent : Agent
         previousScore = 0f;
         stepsWithoutProgress = 0;
         isDead = false;
-
-        // **🚨 NEW: 영역 확보 추적 변수 초기화**
-        // consecutiveTerritoryGains = 0;
-        // lastTerritoryTime = 0f;
-        // totalTerritoryGainedThisEpisode = 0;
 
         // **히스토리 초기화**
         directionHistory.Clear();
@@ -151,7 +146,12 @@ public class MyAgent : Agent
                 }
             }
         }
-    }    // **🎯 고도로 최적화된 공정한 관찰 시스템 - 3x3 핵심 영역 중심 + 적 위협 평가**
+    }
+
+    /// <summary>
+    /// Vector 관찰 수집 (8차원)
+    /// 주요 관찰은 Camera Sensor를 통한 84x84 이미지
+    /// </summary>
     public override void CollectObservations(VectorSensor sensor)
     {
         if (controller == null || mapManager == null)
@@ -164,11 +164,15 @@ public class MyAgent : Agent
         int agentGridY = Mathf.RoundToInt(transform.localPosition.y);
         int myPlayerID = controller.playerID;
 
-        // 6. 기본 정보 (5차원)
+        // 1. 위치 정보 (2차원)
         sensor.AddObservation(Mathf.Clamp01(agentGridX / 100f));
         sensor.AddObservation(Mathf.Clamp01(agentGridY / 100f));
+        
+        // 2. 이동 방향 (2차원)
         sensor.AddObservation(controller.direction.x);
         sensor.AddObservation(controller.direction.y);
+        
+        // 3. 현재 점수 (1차원)
         float currentScore = gameManager?.GetScore(myPlayerID) ?? 0f;
         sensor.AddObservation(currentScore / 10000f);
 
@@ -177,18 +181,17 @@ public class MyAgent : Agent
             Mathf.RoundToInt(transform.position.y)
         );
 
-        // trail 상태인지 여부 (0 or 1)
+        // 4. 상태 정보 (3차원)
         bool isTrailing = mapManager.GetTrail(currentPos) == myPlayerID;
-        // 안전 영역(자신의 영토)에 있는지 여부 (0 or 1)
         bool isInSafeZone = mapManager.GetTile(currentPos) == myPlayerID;
-        // trail 상태가 지속된 시간 (정규화: 0 ~ 1)
         float trailDuration = isTrailing ? (Time.time - trailStartTime) / 5 : 0;
 
-        sensor.AddObservation(isTrailing);
-        sensor.AddObservation(isInSafeZone);
-        sensor.AddObservation(trailDuration);
+        sensor.AddObservation(isTrailing);      // 궤적 남기는 중인지
+        sensor.AddObservation(isInSafeZone);    // 안전 영역에 있는지
+        sensor.AddObservation(trailDuration);   // 궤적 지속 시간
 
-        // Debug.Log($"[MyAgent] 🎯 ULTRA 최적화된 관찰 완료 - 총 1334차원 (45핵심x5 + 625타일 + 625궤적 + 9근접 + 10위험 + 15적위협 + 5기본)");
+        // 총 8차원 (위치2 + 방향2 + 점수1 + 상태3)
+        // + Camera Sensor: 84x84 PNG 이미지로 주변 환경 시각 정보 제공
     }
 
 
@@ -265,56 +268,35 @@ public class MyAgent : Agent
                 }
             }
 
-            // **🚨 절대 벽 충돌 방지 시스템**
+            // 벽 충돌 방지 시스템
             if (!mapManager.InBounds(nextPos))
             {
-                // 벽으로 이동하려는 시도 - 초보적 실수에 강한 페널티
-                AddReward(-0.2f); // 벽 충돌 시도는 초보적 실수
-                                  // Debug.LogWarning($"[MyAgent] 🚨 벽 충돌 시도 차단! 현재: {currentPos}, 시도: {nextPos}");
+                AddReward(-0.2f); // 벽 충돌 시도 페널티
 
                 // 안전한 방향 찾아서 강제 변경
                 Vector2Int safeDirection = FindSafeDirectionFromWall(currentPos);
                 if (safeDirection != Vector2Int.zero)
                 {
                     newDirection = safeDirection;
-                    // Debug.Log($"[MyAgent] ✅ 안전한 방향으로 변경: {safeDirection}");
-                }
-                else
-                {
-                    // 모든 방향이 위험하면 현재 방향 유지 (자연스럽게 사망하도록)
-                    // Debug.LogError("[MyAgent] ⚠️ 모든 방향이 위험! 현재 방향 유지");
-                    // AddReward(-40.0f); // 벽에 몰린 상황도 어느정도 초보적 실수
-                    // EndEpisode()는 호출하지 않음 - 게임 로직에서 자연스럽게 사망 처리되도록
                 }
             }
 
-            // **🚨 자기 궤적 충돌 절대 방지 시스템**
+            // 자기 궤적 충돌 방지 시스템
             if (mapManager.InBounds(nextPos))
             {
-                int nextTrail = mapManager.GetTrail(nextPos); if (nextTrail == controller.playerID)
+                int nextTrail = mapManager.GetTrail(nextPos);
+                if (nextTrail == controller.playerID)
                 {
-                    // 자기 궤적 충돌 시도 - 가장 초보적인 실수에 강한 페널티
-                    // AddReward(-2.0f); // 자기 궤적 충돌 시도는 가장 기본적인 실수
-                    // Debug.LogWarning($"[MyAgent] 💀 자기 궤적 충돌 시도 차단! 현재: {currentPos}, 시도: {nextPos}");
-
                     // 안전한 방향 찾아서 강제 변경
                     Vector2Int safeDirection = FindSafeDirectionFromTrail(currentPos);
                     if (safeDirection != Vector2Int.zero)
                     {
                         newDirection = safeDirection;
-                        // Debug.Log($"[MyAgent] ✅ 궤적 회피 방향으로 변경: {safeDirection}");
-                    }
-                    else
-                    {
-                        // Debug.LogError("[MyAgent] 💀 자기 궤적 충돌 불가피! 현재 방향 유지");
-                        // AddReward(-2.0f); // 자기를 구덩이로 몰아넣은 상황에 큰 페널티
-                        // EndEpisode()는 호출하지 않음 - 게임 로직에서 자연스럽게 사망 처리되도록
-                        // 현재 방향을 유지하여 자연스럽게 충돌하도록 함
                     }
                 }
             }
 
-            // **🚨 위협 평가 기반 향상된 보상 시스템**
+            // 보상 계산
             CalculateSmartRewards(newDirection, currentPos);
             controller.SetDirection(newDirection);
         }
@@ -342,22 +324,21 @@ public class MyAgent : Agent
             // }
         }
     }
+    
+    // 사망 유형별 보상 함수
     public void RewardKilledByWallDeath()
     {
-        // 벽에 박기 = 매우 초보적인 실수, 큰 페널티
-        AddReward(-5.0f); // 초보적 실수에 강력한 페널티
+        AddReward(-5.0f); // 벽 충돌 사망 페널티
     }
 
     public void RewardKilledBySelfDeath()
     {
-        // 자기 꼬리 밟기 = 가장 초보적인 실수, 가장 큰 페널티
-        AddReward(-5.0f); // 가장 기본적인 실수에 최대 페널티
+        AddReward(-5.0f); // 자기 궤적 충돌 사망 페널티
     }
 
     public void RewardKilledByOthers()
     {
-        // 상대의 정교한 공격이나 전략에 당함 = 작은 페널티 (학습 기회)
-        AddReward(-2.5f); // 상대방의 실력에 당한 것은 작은 페널티
+        AddReward(-2.5f); // 상대에게 당한 경우 페널티 (상대적으로 작음)
     }
     public override void Heuristic(in ActionBuffers actionsOut)
     {
@@ -365,7 +346,7 @@ public class MyAgent : Agent
 
         int selectedAction = -1;
 
-        // IJKL 키로 에이전트 수동 제어 (conda/ONNX 둘 다 없을 때 폴백)
+        // IJKL 키로 수동 제어
         if (Input.GetKey(KeyCode.I) || Input.GetKeyDown(KeyCode.I)) selectedAction = 0; // 위
         else if (Input.GetKey(KeyCode.L) || Input.GetKeyDown(KeyCode.L)) selectedAction = 1; // 오른쪽
         else if (Input.GetKey(KeyCode.K) || Input.GetKeyDown(KeyCode.K)) selectedAction = 2; // 아래
@@ -387,7 +368,9 @@ public class MyAgent : Agent
         }
     }
 
-    // **기존 보상 시스템 (백업용)**
+    /// <summary>
+    /// 보상 함수 계산
+    /// </summary>
     private void CalculateSmartRewards(Vector2Int dir, Vector2Int currentPos)
     {
         Vector2Int nextPos = currentPos + dir;
@@ -402,67 +385,63 @@ public class MyAgent : Agent
 
         if (mapManager.InBounds(nextPos))
         {
-            // ✅ 7. 승부 의식 기반 보상
             int myScore = mapManager.GetOwnedTileCount(controller.playerID);
             int rank = GetMyRankAmongPlayers(myScore);
 
-            // 1. 위협 상황에서 귀환 성공 시 보상
+            // 1. 안전지대 진입/체류 보상
             bool isInSafeZone = mapManager.InBounds(nextPos) && mapManager.GetTile(nextPos) == controller.playerID;
             if (isInSafeZone)
             {
                 AddReward(-0.1f); // 안전지대 페널티
             }
 
-            // 2. 적극적 플레이 장려 보상
+            // 2. 안전지대 이탈 보상 (적극적 플레이 장려)
             bool isLeavingSafeZone = currentlyInOwnTerritory && !isInSafeZone;
             if (isLeavingSafeZone)
             {
-                AddReward(+0.3f); // 안전지대를 벗어나는 것에 대한 보상
+                AddReward(+0.3f);
             }
 
-            // 3. trail이 너무 길고 오래 유지되었는데 아직도 안 닫았다면 패널티
+            // 3. 궤적 너무 길게 유지 페널티
             if (trailIsOpen && lastTrailLength > 40)
             {
                 AddReward(-0.05f);
             }
 
-            // 4. 적 근처에서 회피 성공했는지 체크
+            // 4. 적 근처에서 안전 귀환 성공
             float enemyDistance = EstimateNearestEnemyDistance(currentPos);
             if (enemyDistance < 3f && isInSafeZone)
             {
-                AddReward(+0.1f * (1 + (4 - rank) * 0.1f)); // 10배 스케일링: +0.01f → +0.1f
+                AddReward(+0.1f * (1 + (4 - rank) * 0.1f));
             }
 
-            // ✅ 5. 점유율 변화량 보상
+            // 5. 영역 확장/손실 보상
             int currentOwned = CountOwnedTiles(controller.playerID);
             int delta = currentOwned - prevOwnedTileCount;
             if (delta > 0)
             {
-
                 float trailDuration = Time.time - trailStartTime;
                 if (lastTrailLength > 10 && trailDuration > 5f)
                 {
-                    AddReward(0.5f * delta); // 점령 보상
+                    AddReward(0.5f * delta); // 큰 영역 점령
                 }
                 else
                 {
-                    AddReward(0.25f * delta); // 점령 보상 (적은 영역)
+                    AddReward(0.25f * delta); // 작은 영역 점령
                 }
             }
             else if (delta < 0)
-                AddReward(-0.25f * Mathf.Abs(delta)); // 점령 손실 페널티
+            {
+                AddReward(-0.25f * Mathf.Abs(delta)); // 영역 손실
+            }
             prevOwnedTileCount = currentOwned;
 
-            // ✅ 6. 전략적 공격 보상: 적 trail 차단
+            // 6. 적 궤적 차단 보상
             int trailOwner = mapManager.GetTrail(nextPos);
             if (trailOwner != 0 && trailOwner != controller.playerID)
             {
-                // 상대방의 점수만큼 보상
                 float reward = 0.25f * mapManager.GetOwnedTileCount(trailOwner);
                 AddReward(reward);
-
-                // 디버깅 로그(optional)
-                // Debug.Log($"🔥 적 trail 차단! 대상 ID: {trailOwner}, 보상: {reward:F2}");
             }
         }
 
@@ -544,7 +523,8 @@ public class MyAgent : Agent
 
         scores.Sort((a, b) => b.CompareTo(a)); // 내림차순
         return scores.IndexOf(myScore) + 1;
-    }    // **히스토리 업데이트**
+    }
+
     private void UpdateHistory(Vector2Int direction, Vector2Int position)
     {
         directionHistory.Enqueue(direction);
@@ -556,7 +536,9 @@ public class MyAgent : Agent
             positionHistory.Dequeue();
     }
 
-    // **🚨 벽 충돌 회피를 위한 안전한 방향 찾기**
+    /// <summary>
+    /// 벽 충돌 회피를 위한 안전한 방향 찾기
+    /// </summary>
     private Vector2Int FindSafeDirectionFromWall(Vector2Int currentPos)
     {
         Vector2Int[] directions = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
@@ -576,7 +558,9 @@ public class MyAgent : Agent
         return Vector2Int.zero; // 안전한 방향 없음
     }
 
-    // **🚨 자기 궤적 충돌 회피를 위한 안전한 방향 찾기**
+    /// <summary>
+    /// 자기 궤적 충돌 회피를 위한 안전한 방향 찾기
+    /// </summary>
     private Vector2Int FindSafeDirectionFromTrail(Vector2Int currentPos)
     {
         Vector2Int[] directions = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
@@ -619,7 +603,9 @@ public class MyAgent : Agent
         return bestDirection;
     }
 
-    // **✅ 효율적인 영역 확장 패턴 감지**    // 180도 턴(정반대 방향) 방지: Action Masking
+    /// <summary>
+    /// 180도 턴(정반대 방향) 방지: Action Masking
+    /// </summary>
     public override void WriteDiscreteActionMask(IDiscreteActionMask actionMask)
     {
         if (controller == null) return;
@@ -636,12 +622,13 @@ public class MyAgent : Agent
 
         if (opposite >= 0)
         {
-            // 해당 방향(반대 방향) 마스킹 - 선택 불가능하게 만듦
             actionMask.SetActionEnabled(0, opposite, false);
         }
     }
 
-    // 가장 가까운 자신의 영역 위치를 찾는 함수
+    /// <summary>
+    /// 가장 가까운 자신의 영역 위치 찾기
+    /// </summary>
     private Vector2Int FindNearestOwnTerritory(Vector2Int currentPos)
     {
         Vector2Int nearest = currentPos;
