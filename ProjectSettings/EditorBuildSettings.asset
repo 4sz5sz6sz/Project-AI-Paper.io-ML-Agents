@@ -11,6 +11,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/JM.unity
     guid: 026cfd96115807f4ea9270cf03fe3421
+  - enabled: 1
+    path: Assets/Scenes/EndScene.unity
+    guid: 3dc73178b5eaa8d41b70878966cd8fd3
   - enabled: 0
     path: Assets/Scenes/JW.unity
     guid: 8c9cfa26abfee488c85f1582747f6a02

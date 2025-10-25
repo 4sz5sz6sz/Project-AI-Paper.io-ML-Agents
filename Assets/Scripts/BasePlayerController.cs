@@ -245,7 +245,7 @@ public abstract class BasePlayerController : MonoBehaviour
                         if (GameController.Instance != null)
                         {
                             Debug.Log($"플레이어 {cornerTracker.playerId}: 플레이어 {existingTrail}의 궤적을 끊음!");
-                            GameController.Instance.KillPlayer(existingTrail, 3); // 3은 다른 플레이어에게 궤적을 밟혀 사망
+                            GameController.Instance.KillPlayer(existingTrail, 3, cornerTracker.playerId); // 3은 다른 플레이어에게 궤적을 밟혀 사망, 마지막 파라미터는 처치한 플레이어 ID
 
                             // existingTrail의 주인인 플레이어의 BasePlayerController를 찾아서 respawn
                             GameObject[] allPlayers = GameObject.FindGameObjectsWithTag("Player");
