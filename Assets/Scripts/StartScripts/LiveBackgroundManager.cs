@@ -27,13 +27,90 @@ public class LiveBackgroundManager : MonoBehaviour
     
     public GameObject uiOverlay; // 어두운 오버레이 패널
 
+    [Header("Camera Settings")]
+    [Tooltip("AI 플레이어 전환 간격 (초)")]
+    public float cameraSwitchInterval = 2f;
+    
+    [Tooltip("추적할 AI 플레이어 ID (2, 3, 4)")]
+    public int[] aiPlayerIDs = new int[] { 2, 3, 4 };
+
     private Scene backgroundScene;
     private bool isBackgroundLoaded = false;
+    private int currentAIIndex = 0;
+    private float timeSinceLastSwitch = 0f;
 
     void Start()
     {
         StartCoroutine(LoadBackgroundScene());
         SetupUIOverlay();
+    }
+
+    void Update()
+    {
+        // 배경 씬이 로드되면 자동으로 AI 플레이어 전환
+        if (isBackgroundLoaded)
+        {
+            timeSinceLastSwitch += Time.unscaledDeltaTime;
+            
+            if (timeSinceLastSwitch >= cameraSwitchInterval)
+            {
+                SwitchToNextAIPlayer();
+                timeSinceLastSwitch = 0f;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 다음 AI 플레이어로 카메라 전환 (GameController의 키 입력 시뮬레이션)
+    /// </summary>
+    void SwitchToNextAIPlayer()
+    {
+        currentAIIndex = (currentAIIndex + 1) % aiPlayerIDs.Length;
+        int targetPlayerID = aiPlayerIDs[currentAIIndex];
+        
+        // GameController의 SwitchCameraToPlayer를 호출하기 위해
+        // 해당 플레이어 키를 시뮬레이션 (2, 3, 4번 키)
+        StartCoroutine(SimulateKeyPress(targetPlayerID));
+    }
+
+    /// <summary>
+    /// 키 입력 시뮬레이션 - GameController가 처리하도록
+    /// </summary>
+    IEnumerator SimulateKeyPress(int playerID)
+    {
+        // GameController의 HandleCameraControl이 Input.GetKeyDown을 감지하도록
+        // 배경 씬의 GameController에게 직접 카메라 전환 요청
+        GameController gameController = FindBackgroundGameController();
+        
+        if (gameController != null)
+        {
+            // Reflection으로 SwitchCameraToPlayer 호출
+            var method = typeof(GameController).GetMethod("SwitchCameraToPlayer", 
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            
+            if (method != null)
+            {
+                method.Invoke(null, new object[] { playerID });
+            }
+        }
+        
+        yield return null;
+    }
+
+    /// <summary>
+    /// 배경 씬의 GameController 찾기
+    /// </summary>
+    GameController FindBackgroundGameController()
+    {
+        if (!isBackgroundLoaded) return null;
+        
+        GameObject[] rootObjects = backgroundScene.GetRootGameObjects();
+        foreach (GameObject obj in rootObjects)
+        {
+            GameController gc = obj.GetComponentInChildren<GameController>();
+            if (gc != null) return gc;
+        }
+        return null;
     }
 
     IEnumerator LoadBackgroundScene()
