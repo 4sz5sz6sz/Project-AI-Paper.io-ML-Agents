@@ -199,20 +199,23 @@ public class GameController : MonoBehaviour
             if (mainCamera == null) return; // 여전히 없으면 종료
         }
 
-        // 1, 2, 3, 4 키 입력으로 카메라를 특정 플레이어에게 고정
-        if (Input.GetKeyDown(KeyCode.Alpha1))
+        // 치트키 활성화 확인 (모든 씬에서 치트키 필요)
+        bool canSwitchCamera = CheatCodeManager.IsGodModeEnabled;
+
+        // 1, 2, 3, 4 키 입력으로 카메라를 특정 플레이어에게 고정 (치트키 활성화 시에만)
+        if (canSwitchCamera && Input.GetKeyDown(KeyCode.Alpha1))
         {
             SwitchCameraToPlayer(1);
         }
-        else if (Input.GetKeyDown(KeyCode.Alpha2))
+        else if (canSwitchCamera && Input.GetKeyDown(KeyCode.Alpha2))
         {
             SwitchCameraToPlayer(2);
         }
-        else if (Input.GetKeyDown(KeyCode.Alpha3))
+        else if (canSwitchCamera && Input.GetKeyDown(KeyCode.Alpha3))
         {
             SwitchCameraToPlayer(3);
         }
-        else if (Input.GetKeyDown(KeyCode.Alpha4))
+        else if (canSwitchCamera && Input.GetKeyDown(KeyCode.Alpha4))
         {
             SwitchCameraToPlayer(4);
         }        // 현재 추적 중인 플레이어가 있고, 팔로우 모드라면 플레이어 상태 확인
