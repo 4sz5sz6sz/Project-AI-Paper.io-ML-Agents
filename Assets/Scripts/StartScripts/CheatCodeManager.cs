@@ -11,7 +11,25 @@ public class CheatCodeManager : MonoBehaviour
     private const float INPUT_TIMEOUT = 2f; // 2초 동안 입력 없으면 버퍼 초기화
     private float lastInputTime = 0f;
 
-    public static bool IsGodModeEnabled { get; private set; } = false;
+    // static이 아닌 일반 변수로 변경 (씬마다 독립적)
+    private bool isGodModeEnabled = false;
+    
+    // 외부에서 접근할 수 있는 속성
+    public static bool IsGodModeEnabled 
+    { 
+        get 
+        {
+            CheatCodeManager instance = FindObjectOfType<CheatCodeManager>();
+            return instance != null && instance.isGodModeEnabled;
+        }
+    }
+
+    void Start()
+    {
+        // 게임 시작 시 항상 비활성화 상태로 초기화
+        isGodModeEnabled = false;
+        Debug.Log("[CHEAT] 치트키 시스템 초기화 - God Mode: OFF");
+    }
 
     void Update()
     {
@@ -62,9 +80,9 @@ public class CheatCodeManager : MonoBehaviour
 
     void ToggleGodMode()
     {
-        IsGodModeEnabled = !IsGodModeEnabled;
+        isGodModeEnabled = !isGodModeEnabled;
         
-        if (IsGodModeEnabled)
+        if (isGodModeEnabled)
         {
             Debug.Log("🎮 [CHEAT] God Mode 활성화! 카메라 전환 키(1,2,3,4) 사용 가능");
         }
@@ -77,10 +95,10 @@ public class CheatCodeManager : MonoBehaviour
     void OnGUI()
     {
         // 디버그용 표시 (배포 시 제거 가능)
-        if (IsGodModeEnabled)
+        if (isGodModeEnabled)
         {
             GUI.color = Color.yellow;
-            GUI.Label(new Rect(10, 10, 300, 30), "🎮 GOD MODE: ON (1,2,3,4 키 활성화)");
+            GUI.Label(new Rect(10, 10, 300, 30), "GOD MODE: ON (1,2,3,4 키 활성화)");
         }
         
         // 버퍼 상태 실시간 표시
