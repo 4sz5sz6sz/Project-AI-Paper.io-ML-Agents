@@ -99,6 +99,31 @@ public class GameController : MonoBehaviour
     {
         HandleCameraControl(); // 카메라 제어 처리
         UpdateGameTimer(); // 게임 타이머 업데이트
+        
+        // ESC 키로 시작 화면으로 돌아가기
+        // 단, 이 씬이 메인 씬일 때만 (배경으로 로드된 경우 무시)
+        if (Input.GetKeyDown(KeyCode.Escape) && IsMainScene())
+        {
+            ReturnToMainMenu();
+        }
+    }
+
+    /// <summary>
+    /// 현재 씬이 메인 씬인지 확인 (배경으로 로드되지 않았는지)
+    /// </summary>
+    bool IsMainScene()
+    {
+        // 활성화된 씬이 이 씬인지 확인
+        return UnityEngine.SceneManagement.SceneManager.GetActiveScene() == gameObject.scene;
+    }
+
+    void ReturnToMainMenu()
+    {
+        // 타임스케일 복원
+        Time.timeScale = 1f;
+        
+        // StartScene으로 이동
+        SceneManager.LoadScene("StartScene");
     }    // 카메라 제어 입력 처리
 
     void SortScores()

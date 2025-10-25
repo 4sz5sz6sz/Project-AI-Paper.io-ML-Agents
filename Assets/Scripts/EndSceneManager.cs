@@ -60,7 +60,23 @@ public class EndSceneManager : MonoBehaviour
         }
     }
 
+    void Update()
+    {
+        // ESC 키로 게임 종료
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            QuitGame();
+        }
+    }
 
+    void QuitGame()
+    {
+        #if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+        #else
+            Application.Quit();
+        #endif
+    }
 
     // 버튼 클릭 이벤트 처리 메서드
     public void OnPlayAgainButtonClicked()
