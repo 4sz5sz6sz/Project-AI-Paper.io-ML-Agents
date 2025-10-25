@@ -67,11 +67,29 @@ public class HowToPlayPanel : MonoBehaviour
             TogglePanel();
         }
 
-        // ESC 키로 닫기
-        if (Input.GetKeyDown(KeyCode.Escape) && howToPlayPanel != null && howToPlayPanel.activeSelf)
+        // ESC 키 처리
+        if (Input.GetKeyDown(KeyCode.Escape))
         {
-            ClosePanel();
+            if (howToPlayPanel != null && howToPlayPanel.activeSelf)
+            {
+                // 패널이 열려있으면 닫기
+                ClosePanel();
+            }
+            else
+            {
+                // 패널이 닫혀있으면 게임 종료
+                QuitGame();
+            }
         }
+    }
+
+    void QuitGame()
+    {
+        #if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+        #else
+            Application.Quit();
+        #endif
     }
 
     public void OpenPanel()
