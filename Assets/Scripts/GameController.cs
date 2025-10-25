@@ -28,9 +28,9 @@ public class GameController : MonoBehaviour
     private static int followingPlayerId = -1;
 
     // 게임 타이머 관련 변수
-    private const float WINNING_TIME_LIMIT = 10f; // 1등 달성 시 타이머: 10초
+    private const float WINNING_TIME_LIMIT = 120f; // 1등 달성 시 타이머: 2분 (120초)
     private const float TIMER_ACTIVATION_DELAY = 10f; // 게임 시작 후 10초 후 타이머 활성화
-    private const float WARNING_TIME = 3f; // 3초 이하일 때 빨간색 표시
+    private const float WARNING_TIME = 10f; // 10초 이하일 때 빨간색 표시
     private float gameTimer;
     private float gameStartTime; // 게임 시작 시간
     private bool isWinningTimerActive = false; // 플레이어가 1등일 때 타이머 활성화
@@ -446,10 +446,10 @@ public class GameController : MonoBehaviour
             }
             else
             {
-                Debug.Log($"[GameController] 타이머 멈춤 (Time Stop 활성화): {gameTimer:F2}초");
+                // Debug.Log($"[GameController] 타이머 멈춤 (Time Stop 활성화): {gameTimer:F2}초");
             }
             
-            // 10초 타이머가 다 지났으면 (0초에서 멈춤)
+            // 120초 타이머가 다 지났으면 (0초에서 멈춤)
             if (gameTimer <= 0f)
             {
                 gameTimer = 0f;
@@ -457,7 +457,7 @@ public class GameController : MonoBehaviour
                 hasWonOnce = true; // 승리 플래그 설정 (재시작 방지)
                 
                 Debug.Log("=====================================");
-                Debug.Log("[GameController] 10초 타이머 종료! 승리! EndScene으로 전환합니다.");
+                Debug.Log("[GameController] 120초 타이머 종료! 승리! EndScene으로 전환합니다.");
                 Debug.Log("=====================================");
                 
                 // EndScene으로 전환
