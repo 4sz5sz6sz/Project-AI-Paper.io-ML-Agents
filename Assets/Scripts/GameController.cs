@@ -437,9 +437,17 @@ public class GameController : MonoBehaviour
         // 플레이어가 1등일 때만 10초 타이머 감소
         if (isWinningTimerActive)
         {
-            gameTimer -= Time.deltaTime;
-            
-            Debug.Log($"[GameController] 타이머 진행 중: {gameTimer:F2}초");
+            // Time Stop 치트가 활성화되지 않았을 때만 타이머 감소
+            if (!CheatCodeManager.IsTimeStopEnabled)
+            {
+                gameTimer -= Time.deltaTime;
+                
+                // Debug.Log($"[GameController] 타이머 진행 중: {gameTimer:F2}초");
+            }
+            else
+            {
+                Debug.Log($"[GameController] 타이머 멈춤 (Time Stop 활성화): {gameTimer:F2}초");
+            }
             
             // 10초 타이머가 다 지났으면 (0초에서 멈춤)
             if (gameTimer <= 0f)
