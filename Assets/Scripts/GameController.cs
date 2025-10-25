@@ -28,9 +28,9 @@ public class GameController : MonoBehaviour
     private static int followingPlayerId = -1;
 
     // 게임 타이머 관련 변수
-    private const float WINNING_TIME_LIMIT = 10f; // 1등 달성 시 타이머: 10초
+    private const float WINNING_TIME_LIMIT = 60f; // 1등 달성 시 타이머: 60초(1분)
     private const float TIMER_ACTIVATION_DELAY = 10f; // 게임 시작 후 10초 후 타이머 활성화
-    private const float WARNING_TIME = 3f; // 3초 이하일 때 빨간색 표시
+    private const float WARNING_TIME = 10f; // 10초 이하일 때 빨간색 표시
     private float gameTimer;
     private float gameStartTime; // 게임 시작 시간
     private bool isWinningTimerActive = false; // 플레이어가 1등일 때 타이머 활성화
@@ -149,8 +149,8 @@ public class GameController : MonoBehaviour
         if (playerIsFirst && !isWinningTimerActive && canActivateTimer && !hasWonOnce)
         {
             isWinningTimerActive = true;
-            gameTimer = WINNING_TIME_LIMIT; // 10초 타이머 시작
-            Debug.Log($"플레이어가 1등 달성! 10초 타이머 시작! (현재 경과시간: {Time.time - gameStartTime:F1}초)");
+            gameTimer = WINNING_TIME_LIMIT; // 1분(60초) 타이머 시작
+            Debug.Log($"플레이어가 1등 달성! 1분 타이머 시작! (현재 경과시간: {Time.time - gameStartTime:F1}초)");
         }
         // 1등을 빼앗겼을 때 타이머 비활성화 및 숨김 (단, 타이머가 아직 0보다 클 때만)
         else if (!playerIsFirst && isWinningTimerActive && gameTimer > 0f)
@@ -309,6 +309,13 @@ public class GameController : MonoBehaviour
             IncrementPlayer1DeathCount();
         }
 
+        // 처치한 플레이어에게 100점 추가 (deathType == 3일 때만, 즉 다른 플레이어를 처치했을 때)
+        if (killerId > 0 && deathType == 3)
+        {
+            AddScore(killerId, 100);
+            Debug.Log($"[GameController] 플레이어 {killerId}가 플레이어 {playerId}를 처치하여 100점 획득!");
+        }
+
         // 플레이어 1이 다른 플레이어를 처치한 경우 (궤적을 끊어서 처치)
         // 주의: deathType == 3은 다른 플레이어에게 궤적을 밟혀 사망한 경우이므로
         // 이 경우 처치한 플레이어는 게임 로직에서 별도로 추적해야 합니다.
@@ -431,14 +438,14 @@ public class GameController : MonoBehaviour
     /// </summary>
     private void UpdateGameTimer()
     {
-        // 플레이어가 1등일 때만 10초 타이머 감소
+        // 플레이어가 1등일 때만 1분(60초) 타이머 감소
         if (isWinningTimerActive)
         {
             gameTimer -= Time.deltaTime;
             
             Debug.Log($"[GameController] 타이머 진행 중: {gameTimer:F2}초");
             
-            // 10초 타이머가 다 지났으면 (0초에서 멈춤)
+            // 1분 타이머가 다 지났으면 (0초에서 멈춤)
             if (gameTimer <= 0f)
             {
                 gameTimer = 0f;
@@ -446,7 +453,7 @@ public class GameController : MonoBehaviour
                 hasWonOnce = true; // 승리 플래그 설정 (재시작 방지)
                 
                 Debug.Log("=====================================");
-                Debug.Log("[GameController] 10초 타이머 종료! 승리! EndScene으로 전환합니다.");
+                Debug.Log("[GameController] 1분 타이머 종료! 승리! EndScene으로 전환합니다.");
                 Debug.Log("=====================================");
                 
                 // EndScene으로 전환
