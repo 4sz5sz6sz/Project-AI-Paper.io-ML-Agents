@@ -28,7 +28,7 @@ public class GameController : MonoBehaviour
     private static int followingPlayerId = -1;
 
     // 게임 타이머 관련 변수
-    private const float WINNING_TIME_LIMIT = 60f; // 1등 달성 시 타이머: 60초(1분)
+    private const float WINNING_TIME_LIMIT = 120f; // 1등 달성 시 타이머: 2분 (120초)
     private const float TIMER_ACTIVATION_DELAY = 10f; // 게임 시작 후 10초 후 타이머 활성화
     private const float WARNING_TIME = 10f; // 10초 이하일 때 빨간색 표시
     private float gameTimer;
@@ -199,20 +199,23 @@ public class GameController : MonoBehaviour
             if (mainCamera == null) return; // 여전히 없으면 종료
         }
 
-        // 1, 2, 3, 4 키 입력으로 카메라를 특정 플레이어에게 고정
-        if (Input.GetKeyDown(KeyCode.Alpha1))
+        // 치트키 활성화 확인 (모든 씬에서 치트키 필요)
+        bool canSwitchCamera = CheatCodeManager.IsGodModeEnabled;
+
+        // 1, 2, 3, 4 키 입력으로 카메라를 특정 플레이어에게 고정 (치트키 활성화 시에만)
+        if (canSwitchCamera && Input.GetKeyDown(KeyCode.Alpha1))
         {
             SwitchCameraToPlayer(1);
         }
-        else if (Input.GetKeyDown(KeyCode.Alpha2))
+        else if (canSwitchCamera && Input.GetKeyDown(KeyCode.Alpha2))
         {
             SwitchCameraToPlayer(2);
         }
-        else if (Input.GetKeyDown(KeyCode.Alpha3))
+        else if (canSwitchCamera && Input.GetKeyDown(KeyCode.Alpha3))
         {
             SwitchCameraToPlayer(3);
         }
-        else if (Input.GetKeyDown(KeyCode.Alpha4))
+        else if (canSwitchCamera && Input.GetKeyDown(KeyCode.Alpha4))
         {
             SwitchCameraToPlayer(4);
         }        // 현재 추적 중인 플레이어가 있고, 팔로우 모드라면 플레이어 상태 확인
@@ -441,11 +444,19 @@ public class GameController : MonoBehaviour
         // 플레이어가 1등일 때만 1분(60초) 타이머 감소
         if (isWinningTimerActive)
         {
-            gameTimer -= Time.deltaTime;
+            // Time Stop 치트가 활성화되지 않았을 때만 타이머 감소
+            if (!CheatCodeManager.IsTimeStopEnabled)
+            {
+                gameTimer -= Time.deltaTime;
+                
+                // Debug.Log($"[GameController] 타이머 진행 중: {gameTimer:F2}초");
+            }
+            else
+            {
+                // Debug.Log($"[GameController] 타이머 멈춤 (Time Stop 활성화): {gameTimer:F2}초");
+            }
             
-            Debug.Log($"[GameController] 타이머 진행 중: {gameTimer:F2}초");
-            
-            // 1분 타이머가 다 지났으면 (0초에서 멈춤)
+            // 120초 타이머가 다 지났으면 (0초에서 멈춤)
             if (gameTimer <= 0f)
             {
                 gameTimer = 0f;
@@ -453,7 +464,7 @@ public class GameController : MonoBehaviour
                 hasWonOnce = true; // 승리 플래그 설정 (재시작 방지)
                 
                 Debug.Log("=====================================");
-                Debug.Log("[GameController] 1분 타이머 종료! 승리! EndScene으로 전환합니다.");
+                Debug.Log("[GameController] 120초 타이머 종료! 승리! EndScene으로 전환합니다.");
                 Debug.Log("=====================================");
                 
                 // EndScene으로 전환
