@@ -1,0 +1,65 @@
+{
+    "Basic_easy": {
+        "checkpoints": [
+            {
+                "steps": 1245402,
+                "file_path": "results\\alpha7\\Basic_easy\\Basic_easy-1245402.onnx",
+                "reward": 310.7482089079343,
+                "creation_time": 1761357720.2186282,
+                "auxillary_file_paths": [
+                    "results\\alpha7\\Basic_easy\\Basic_easy-1245402.pt"
+                ]
+            },
+            {
+                "steps": 1265078,
+                "file_path": "results\\alpha7\\Basic_easy\\Basic_easy-1265078.onnx",
+                "reward": -11.721518925258092,
+                "creation_time": 1761374711.705846,
+                "auxillary_file_paths": [
+                    "results\\alpha7\\Basic_easy\\Basic_easy-1265078.pt"
+                ]
+            },
+            {
+                "steps": 1273586,
+                "file_path": "results\\alpha7\\Basic_easy\\Basic_easy-1273586.onnx",
+                "reward": 194.26303351443747,
+                "creation_time": 1761374892.235613,
+                "auxillary_file_paths": [
+                    "results\\alpha7\\Basic_easy\\Basic_easy-1273586.pt"
+                ]
+            },
+            {
+                "steps": 1292308,
+                "file_path": "results\\alpha7\\Basic_easy\\Basic_easy-1292308.onnx",
+                "reward": 152.27865514089896,
+                "creation_time": 1761452024.8907058,
+                "auxillary_file_paths": [
+                    "results\\alpha7\\Basic_easy\\Basic_easy-1292308.pt"
+                ]
+            },
+            {
+                "steps": 1294966,
+                "file_path": "results\\alpha7\\Basic_easy\\Basic_easy-1294966.onnx",
+                "reward": 232.7690409762519,
+                "creation_time": 1761453640.5038538,
+                "auxillary_file_paths": [
+                    "results\\alpha7\\Basic_easy\\Basic_easy-1294966.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 1294966,
+            "file_path": "results\\alpha7\\Basic_easy.onnx",
+            "reward": 232.7690409762519,
+            "creation_time": 1761453640.5038538,
+            "auxillary_file_paths": [
+                "results\\alpha7\\Basic_easy\\Basic_easy-1294966.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "1.1.0",
+        "torch_version": "2.2.2+cu121"
+    }
+}
