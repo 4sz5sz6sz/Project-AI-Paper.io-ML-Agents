@@ -242,9 +242,6 @@ public class MyAgent : Agent
 
             Vector2Int nextPos = currentPos + newDirection;
 
-            // === 광선 기반 위험도/기회 평가 ===
-            RaycastDirectionAnalysis(newDirection, currentPos);
-
             // 현재 자신의 영역 밖에 있는지 확인
             bool isOutsideTerritory = mapManager.GetTile(currentPos) != controller.playerID;
 
@@ -583,130 +580,67 @@ public class MyAgent : Agent
     }
 
     /// <summary>
-    /// 벽 충돌 회피를 위한 안전한 방향 찾기
+    /// 벽 충돌 회피를 위한 안전한 방향 찾기 (10칸 광선 기반)
     /// </summary>
     private Vector2Int FindSafeDirectionFromWall(Vector2Int currentPos)
     {
         Vector2Int[] directions = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
-
-        foreach (var dir in directions)
-        {
-            Vector2Int testPos = currentPos + dir;
-
-            // 경계 내부이고 자기 궤적이 아닌 곳 찾기
-            if (mapManager.InBounds(testPos) &&
-                mapManager.GetTrail(testPos) != controller.playerID)
-            {
-                return dir; // 첫 번째 안전한 방향 반환
-            }
-        }
-
-        return Vector2Int.zero; // 안전한 방향 없음
-    }
-
-    /// <summary>
-    /// 광선 기반 방향 분석: 10칸 이내 위험/기회 평가
-    /// </summary>
-    private void RaycastDirectionAnalysis(Vector2Int direction, Vector2Int currentPos)
-    {
-        const int RAY_DISTANCE = 10;
-        
-        int myTrailCount = 0;      // 내 궤적 감지 수
-        int enemyTrailCount = 0;   // 적 궤적 감지 수
-        int wallDistance = RAY_DISTANCE + 1;  // 벽까지 거리
-        bool foundEnemyTrail = false;
-        int enemyTrailDistance = RAY_DISTANCE + 1;
-
-        // 선택한 방향으로 광선 발사
-        for (int i = 1; i <= RAY_DISTANCE; i++)
-        {
-            Vector2Int checkPos = currentPos + direction * i;
-
-            // 벽 체크
-            if (!mapManager.InBounds(checkPos))
-            {
-                wallDistance = i;
-                break;
-            }
-
-            // 궤적 체크
-            int trail = mapManager.GetTrail(checkPos);
-            
-            // 내 궤적 발견
-            if (trail == controller.playerID)
-            {
-                myTrailCount++;
-            }
-            // 적 궤적 발견 (첫 번째만 기록)
-            else if (trail != 0 && !foundEnemyTrail)
-            {
-                enemyTrailCount++;
-                enemyTrailDistance = i;
-                foundEnemyTrail = true;
-            }
-        }
-
-        // === 보상/페널티 적용 ===
-
-        // 1. 내 궤적이 있으면 위험 → 비추천
-        if (myTrailCount > 0)
-        {
-            float danger = -0.5f * myTrailCount; // 많을수록 위험
-            AddReward(danger);
-            Debug.Log($"[Raycast] Player {controller.playerID}: 방향 {direction}에 내 궤적 {myTrailCount}개 발견 → 페널티 {danger:F2}");
-        }
-
-        // 2. 적 궤적이 가까우면 공격 기회 → 보너스
-        if (foundEnemyTrail && enemyTrailDistance <= 5)
-        {
-            float bonus = 1.0f * (6 - enemyTrailDistance) / 5f; // 가까울수록 큰 보상 (최대 1.0)
-            AddReward(bonus);
-            Debug.Log($"[Raycast] Player {controller.playerID}: 적 궤적 {enemyTrailDistance}칸 거리 발견 → 보너스 {bonus:F2}");
-        }
-
-        // 3. 벽이 너무 가까우면 위험
-        if (wallDistance <= 3)
-        {
-            float wallDanger = -1.0f * (4 - wallDistance) / 3f; // 가까울수록 큰 페널티 (최대 -1.0)
-            AddReward(wallDanger);
-            Debug.Log($"[Raycast] Player {controller.playerID}: 벽까지 {wallDistance}칸 → 페널티 {wallDanger:F2}");
-        }
-    }
-
-    /// <summary>
-    /// 자기 궤적 충돌 회피를 위한 안전한 방향 찾기
-    /// </summary>
-    private Vector2Int FindSafeDirectionFromTrail(Vector2Int currentPos)
-    {
-        Vector2Int[] directions = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
         Vector2Int bestDirection = Vector2Int.zero;
-        int bestScore = -999;
+        int bestScore = -9999;
 
         foreach (var dir in directions)
         {
-            Vector2Int testPos = currentPos + dir;
-
-            // 경계 체크
-            if (!mapManager.InBounds(testPos)) continue;
-
-            // 자기 궤적 체크 (절대 피해야 함)
-            if (mapManager.GetTrail(testPos) == controller.playerID) continue;
-
-            // 안전도 점수 계산
             int score = 0;
-            int tileOwner = mapManager.GetTile(testPos);
+            bool hitWall = false;
+            bool hitMyTrail = false;
+            int safeDistance = 0;
 
-            if (tileOwner == controller.playerID)
-                score += 100; // 내 영역으로 이동 (가장 안전)
-            else if (tileOwner == 0)
-                score += 50;  // 중립 지역 (보통 안전)
-            else
-                score += 10;  // 상대방 영역 (덜 선호하지만 안전)
+            // 이 방향으로 10칸까지 광선 발사
+            for (int i = 1; i <= 10; i++)
+            {
+                Vector2Int checkPos = currentPos + dir * i;
 
-            // 다른 궤적이 있으면 감점
-            int trailOwner = mapManager.GetTrail(testPos);
-            if (trailOwner != 0 && trailOwner != controller.playerID)
-                score -= 30;
+                // 벽 체크
+                if (!mapManager.InBounds(checkPos))
+                {
+                    hitWall = true;
+                    safeDistance = i - 1; // 벽 직전까지 안전
+                    break;
+                }
+
+                // 내 궤적 체크
+                if (mapManager.GetTrail(checkPos) == controller.playerID)
+                {
+                    hitMyTrail = true;
+                    safeDistance = i - 1; // 내 궤적 직전까지 안전
+                    break;
+                }
+
+                safeDistance = i; // 여기까지는 안전
+            }
+
+            // 점수 계산: 안전거리가 길수록 좋음
+            score = safeDistance * 10;
+
+            // 벽이나 내 궤적에 바로 부딪히면 큰 감점
+            if (safeDistance == 0)
+            {
+                score = -1000;
+            }
+
+            // 추가 보너스: 끝 지점이 내 영역이면 더 안전
+            if (safeDistance > 0)
+            {
+                Vector2Int endPos = currentPos + dir * safeDistance;
+                if (mapManager.InBounds(endPos))
+                {
+                    int tileOwner = mapManager.GetTile(endPos);
+                    if (tileOwner == controller.playerID)
+                    {
+                        score += 50; // 내 영역으로 돌아가는 경로
+                    }
+                }
+            }
 
             if (score > bestScore)
             {
@@ -715,6 +649,109 @@ public class MyAgent : Agent
             }
         }
 
+        if (bestScore == -9999)
+        {
+            Debug.LogError($"[Safety] Player {controller.playerID}: 모든 방향이 막힘! 현재 방향 유지");
+            return controller.direction; // 최악의 경우 현재 방향
+        }
+
+        Debug.Log($"[Safety] Player {controller.playerID}: 최적 방향 {bestDirection}, 점수: {bestScore}");
+        return bestDirection;
+    }
+
+    /// <summary>
+    /// 자기 궤적 충돌 회피를 위한 안전한 방향 찾기 (10칸 광선 기반)
+    /// </summary>
+    private Vector2Int FindSafeDirectionFromTrail(Vector2Int currentPos)
+    {
+        Vector2Int[] directions = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
+        Vector2Int bestDirection = Vector2Int.zero;
+        int bestScore = -9999;
+
+        foreach (var dir in directions)
+        {
+            int score = 0;
+            bool hitWall = false;
+            bool hitMyTrail = false;
+            int safeDistance = 0;
+
+            // 이 방향으로 10칸까지 광선 발사
+            for (int i = 1; i <= 10; i++)
+            {
+                Vector2Int checkPos = currentPos + dir * i;
+
+                // 벽 체크
+                if (!mapManager.InBounds(checkPos))
+                {
+                    hitWall = true;
+                    safeDistance = i - 1;
+                    break;
+                }
+
+                // 내 궤적 체크
+                if (mapManager.GetTrail(checkPos) == controller.playerID)
+                {
+                    hitMyTrail = true;
+                    safeDistance = i - 1;
+                    break;
+                }
+
+                safeDistance = i;
+            }
+
+            // 점수 계산: 안전거리가 길수록 좋음
+            score = safeDistance * 10;
+
+            // 즉시 충돌하면 큰 감점
+            if (safeDistance == 0)
+            {
+                score = -1000;
+            }
+
+            // 추가 보너스: 끝 지점의 안전도
+            if (safeDistance > 0)
+            {
+                Vector2Int endPos = currentPos + dir * safeDistance;
+                if (mapManager.InBounds(endPos))
+                {
+                    int tileOwner = mapManager.GetTile(endPos);
+                    int trailOwner = mapManager.GetTrail(endPos);
+
+                    if (tileOwner == controller.playerID)
+                    {
+                        score += 100; // 내 영역으로 돌아가는 경로 (최고 안전)
+                    }
+                    else if (tileOwner == 0)
+                    {
+                        score += 50; // 중립 지역 (안전)
+                    }
+                    else
+                    {
+                        score += 10; // 적 영역 (덜 선호)
+                    }
+
+                    // 적 궤적이 있으면 약간 감점
+                    if (trailOwner != 0 && trailOwner != controller.playerID)
+                    {
+                        score -= 20;
+                    }
+                }
+            }
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestDirection = dir;
+            }
+        }
+
+        if (bestScore == -9999)
+        {
+            Debug.LogError($"[Safety] Player {controller.playerID}: 탈출 불가능! 현재 방향 유지");
+            return controller.direction;
+        }
+
+        Debug.Log($"[Safety] Player {controller.playerID}: 최적 탈출 방향 {bestDirection}, 점수: {bestScore}");
         return bestDirection;
     }
 
