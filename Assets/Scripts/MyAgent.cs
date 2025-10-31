@@ -242,6 +242,9 @@ public class MyAgent : Agent
 
             Vector2Int nextPos = currentPos + newDirection;
 
+            // === 광선 기반 위험도/기회 평가 ===
+            RaycastDirectionAnalysis(newDirection, currentPos);
+
             // 현재 자신의 영역 밖에 있는지 확인
             bool isOutsideTerritory = mapManager.GetTile(currentPos) != controller.playerID;
 
@@ -268,30 +271,48 @@ public class MyAgent : Agent
                 }
             }
 
-            // 벽 충돌 방지 시스템
+            // === 벽 충돌 방지 시스템 (강화) ===
             if (!mapManager.InBounds(nextPos))
             {
-                AddReward(-0.2f); // 벽 충돌 시도 페널티
+                // 벽으로 가려는 시도에 즉각 큰 페널티
+                AddReward(-2.0f);
+                Debug.LogWarning($"[Safety] Player {controller.playerID} 벽 충돌 시도! 방향 강제 변경");
 
                 // 안전한 방향 찾아서 강제 변경
                 Vector2Int safeDirection = FindSafeDirectionFromWall(currentPos);
                 if (safeDirection != Vector2Int.zero)
                 {
                     newDirection = safeDirection;
+                    nextPos = currentPos + newDirection; // nextPos 업데이트
+                }
+                else
+                {
+                    // 안전한 방향이 없으면 현재 방향 유지
+                    newDirection = controller.direction;
+                    nextPos = currentPos + newDirection;
                 }
             }
 
-            // 자기 궤적 충돌 방지 시스템
+            // === 자기 궤적 충돌 방지 시스템 (강화) ===
             if (mapManager.InBounds(nextPos))
             {
                 int nextTrail = mapManager.GetTrail(nextPos);
                 if (nextTrail == controller.playerID)
                 {
+                    // 자기 궤적으로 가려는 시도에 즉각 큰 페널티
+                    AddReward(-2.0f);
+                    Debug.LogWarning($"[Safety] Player {controller.playerID} 자기 궤적 충돌 시도! 방향 강제 변경");
+
                     // 안전한 방향 찾아서 강제 변경
                     Vector2Int safeDirection = FindSafeDirectionFromTrail(currentPos);
                     if (safeDirection != Vector2Int.zero)
                     {
                         newDirection = safeDirection;
+                    }
+                    else
+                    {
+                        // 안전한 방향이 없으면 현재 방향 유지
+                        newDirection = controller.direction;
                     }
                 }
             }
@@ -325,20 +346,23 @@ public class MyAgent : Agent
         }
     }
     
-    // 사망 유형별 보상 함수
+    // 사망 유형별 보상 함수 (페널티 균형 조정)
     public void RewardKilledByWallDeath()
     {
-        AddReward(-5.0f); // 벽 충돌 사망 페널티
+        AddReward(-5.0f); // -10.0 → -5.0 (생존 보상과 균형)
+        Debug.Log($"[Death] Player {controller.playerID} 벽 충돌 사망! 페널티: -5.0");
     }
 
     public void RewardKilledBySelfDeath()
     {
-        AddReward(-5.0f); // 자기 궤적 충돌 사망 페널티
+        AddReward(-5.0f); // -10.0 → -5.0 (생존 보상과 균형)
+        Debug.Log($"[Death] Player {controller.playerID} 자기 궤적 사망! 페널티: -5.0");
     }
 
     public void RewardKilledByOthers()
     {
-        AddReward(-2.5f); // 상대에게 당한 경우 페널티 (상대적으로 작음)
+        AddReward(-3.0f); // -5.0 → -3.0 (상대적으로 덜 심각)
+        Debug.Log($"[Death] Player {controller.playerID} 적에게 사망! 페널티: -3.0");
     }
     public override void Heuristic(in ActionBuffers actionsOut)
     {
@@ -369,89 +393,111 @@ public class MyAgent : Agent
     }
 
     /// <summary>
-    /// 보상 함수 계산
+    /// 보상 함수 계산 (간소화 및 명확화)
     /// </summary>
     private void CalculateSmartRewards(Vector2Int dir, Vector2Int currentPos)
     {
         Vector2Int nextPos = currentPos + dir;
 
-        // 0. 자기 영역 안에 너무 오래 머물면 감점
+        // === 기본 생존 보상 (증가) ===
+        AddReward(0.01f); // 0.001 → 0.01 (10배 증가, 생존 가치 향상)
+
+        if (!mapManager.InBounds(nextPos))
+        {
+            // 벽 충돌 시도 시 페널티
+            AddReward(-0.5f); // -1.0 → -0.5 (즉각 페널티는 약하게)
+            return;
+        }
+
         bool currentlyInOwnTerritory = mapManager.InBounds(currentPos) &&
                                        mapManager.GetTile(currentPos) == controller.playerID;
-        if (currentlyInOwnTerritory && (Time.time - trailStartTime) > 1f)
+        bool isInSafeZone = mapManager.GetTile(nextPos) == controller.playerID;
+
+        // === 1. 안전지대 vs 위험지대 보상 ===
+        if (isInSafeZone)
         {
-            AddReward(-0.2f); // 안전지대에 너무 오래 머물면 페널티
+            // 안전지대에서 너무 오래 머물면 페널티
+            int trailLength = CountTrailTiles(controller.playerID);
+            if (trailLength == 0)
+            {
+                AddReward(-0.02f); // 궤적 없이 안전지대 배회
+            }
         }
-
-        if (mapManager.InBounds(nextPos))
+        else
         {
-            int myScore = mapManager.GetOwnedTileCount(controller.playerID);
-            int rank = GetMyRankAmongPlayers(myScore);
-
-            // 1. 안전지대 진입/체류 보상
-            bool isInSafeZone = mapManager.InBounds(nextPos) && mapManager.GetTile(nextPos) == controller.playerID;
-            if (isInSafeZone)
+            // 위험 지대로 나가는 것은 긍정적 (영역 확장 기회)
+            if (currentlyInOwnTerritory)
             {
-                AddReward(-0.1f); // 안전지대 페널티
-            }
-
-            // 2. 안전지대 이탈 보상 (적극적 플레이 장려)
-            bool isLeavingSafeZone = currentlyInOwnTerritory && !isInSafeZone;
-            if (isLeavingSafeZone)
-            {
-                AddReward(+0.3f);
-            }
-
-            // 3. 궤적 너무 길게 유지 페널티
-            if (trailIsOpen && lastTrailLength > 40)
-            {
-                AddReward(-0.05f);
-            }
-
-            // 4. 적 근처에서 안전 귀환 성공
-            float enemyDistance = EstimateNearestEnemyDistance(currentPos);
-            if (enemyDistance < 3f && isInSafeZone)
-            {
-                AddReward(+0.1f * (1 + (4 - rank) * 0.1f));
-            }
-
-            // 5. 영역 확장/손실 보상
-            int currentOwned = CountOwnedTiles(controller.playerID);
-            int delta = currentOwned - prevOwnedTileCount;
-            if (delta > 0)
-            {
-                float trailDuration = Time.time - trailStartTime;
-                if (lastTrailLength > 10 && trailDuration > 5f)
-                {
-                    AddReward(0.5f * delta); // 큰 영역 점령
-                }
-                else
-                {
-                    AddReward(0.25f * delta); // 작은 영역 점령
-                }
-            }
-            else if (delta < 0)
-            {
-                AddReward(-0.25f * Mathf.Abs(delta)); // 영역 손실
-            }
-            prevOwnedTileCount = currentOwned;
-
-            // 6. 적 궤적 차단 보상
-            int trailOwner = mapManager.GetTrail(nextPos);
-            if (trailOwner != 0 && trailOwner != controller.playerID)
-            {
-                float reward = 0.25f * mapManager.GetOwnedTileCount(trailOwner);
-                AddReward(reward);
+                AddReward(+0.2f); // +0.1 → +0.2 (적극적 플레이 더 장려)
             }
         }
 
-        // 상태 업데이트
-        lastTrailLength = CountTrailTiles(controller.playerID);
-        if (!trailIsOpen && lastTrailLength > 0)
+        // === 2. 자기 궤적 밟기 방지 (매우 중요!) ===
+        int nextTrail = mapManager.GetTrail(nextPos);
+        if (nextTrail == controller.playerID)
         {
-            trailStartTime = Time.time;
-            trailIsOpen = true;
+            AddReward(-1.0f); // -2.0 → -1.0 (즉각 페널티 감소)
+            return;
         }
+
+        // === 3. 적 궤적 차단 보상 (공격적 플레이 장려) ===
+        if (nextTrail != 0 && nextTrail != controller.playerID)
+        {
+            // 적의 궤적을 밟으면 큰 보상
+            int enemyOwnedTiles = mapManager.GetOwnedTileCount(nextTrail);
+            float reward = Mathf.Clamp(1.0f + enemyOwnedTiles * 0.02f, 1.0f, 10.0f); // 기본 보상 증가
+            AddReward(reward);
+            Debug.Log($"[Reward] Player {controller.playerID}가 Player {nextTrail}의 궤적 차단! +{reward:F2}");
+        }
+
+        // === 4. 영역 확장 보상 (가장 중요한 목표) ===
+        int currentOwned = CountOwnedTiles(controller.playerID);
+        int delta = currentOwned - prevOwnedTileCount;
+        
+        if (delta > 0)
+        {
+            // 영역이 늘어나면 큰 보상
+            float expansionReward = Mathf.Clamp(delta * 1.0f, 0.5f, 20.0f); // 0.5 → 1.0 (2배), 최대 10 → 20
+            AddReward(expansionReward);
+            Debug.Log($"[Reward] Player {controller.playerID} 영역 확장! +{delta} 타일, 보상: +{expansionReward:F2}");
+            
+            // 궤적 닫기 성공 후 상태 리셋
+            trailIsOpen = false;
+            lastTrailLength = 0;
+        }
+        else if (delta < 0)
+        {
+            // 영역 손실 시 페널티
+            AddReward(-0.3f * Mathf.Abs(delta)); // -0.5 → -0.3 (페널티 감소)
+        }
+        
+        prevOwnedTileCount = currentOwned;
+
+        // === 5. 궤적 관리 (너무 길면 위험) ===
+        int currentTrailLength = CountTrailTiles(controller.playerID);
+        if (currentTrailLength > 0)
+        {
+            if (!trailIsOpen)
+            {
+                trailIsOpen = true;
+                trailStartTime = Time.time;
+            }
+
+            // 궤적이 너무 길어지면 점점 더 큰 페널티
+            if (currentTrailLength > 30)
+            {
+                AddReward(-0.05f * (currentTrailLength - 30) / 10f); // -0.1 → -0.05
+            }
+
+            // 시간이 너무 오래 걸리면 추가 페널티
+            float trailDuration = Time.time - trailStartTime;
+            if (trailDuration > 10f)
+            {
+                AddReward(-0.1f); // -0.2 → -0.1
+            }
+        }
+        
+        lastTrailLength = currentTrailLength;
     }
 
     private int CountTrailTiles(int playerID)
@@ -556,6 +602,75 @@ public class MyAgent : Agent
         }
 
         return Vector2Int.zero; // 안전한 방향 없음
+    }
+
+    /// <summary>
+    /// 광선 기반 방향 분석: 10칸 이내 위험/기회 평가
+    /// </summary>
+    private void RaycastDirectionAnalysis(Vector2Int direction, Vector2Int currentPos)
+    {
+        const int RAY_DISTANCE = 10;
+        
+        int myTrailCount = 0;      // 내 궤적 감지 수
+        int enemyTrailCount = 0;   // 적 궤적 감지 수
+        int wallDistance = RAY_DISTANCE + 1;  // 벽까지 거리
+        bool foundEnemyTrail = false;
+        int enemyTrailDistance = RAY_DISTANCE + 1;
+
+        // 선택한 방향으로 광선 발사
+        for (int i = 1; i <= RAY_DISTANCE; i++)
+        {
+            Vector2Int checkPos = currentPos + direction * i;
+
+            // 벽 체크
+            if (!mapManager.InBounds(checkPos))
+            {
+                wallDistance = i;
+                break;
+            }
+
+            // 궤적 체크
+            int trail = mapManager.GetTrail(checkPos);
+            
+            // 내 궤적 발견
+            if (trail == controller.playerID)
+            {
+                myTrailCount++;
+            }
+            // 적 궤적 발견 (첫 번째만 기록)
+            else if (trail != 0 && !foundEnemyTrail)
+            {
+                enemyTrailCount++;
+                enemyTrailDistance = i;
+                foundEnemyTrail = true;
+            }
+        }
+
+        // === 보상/페널티 적용 ===
+
+        // 1. 내 궤적이 있으면 위험 → 비추천
+        if (myTrailCount > 0)
+        {
+            float danger = -0.5f * myTrailCount; // 많을수록 위험
+            AddReward(danger);
+            Debug.Log($"[Raycast] Player {controller.playerID}: 방향 {direction}에 내 궤적 {myTrailCount}개 발견 → 페널티 {danger:F2}");
+        }
+
+        // 2. 적 궤적이 가까우면 공격 기회 → 보너스
+        if (foundEnemyTrail && enemyTrailDistance <= 5)
+        {
+            float bonus = 1.0f * (6 - enemyTrailDistance) / 5f; // 가까울수록 큰 보상 (최대 1.0)
+            AddReward(bonus);
+            Debug.Log($"[Raycast] Player {controller.playerID}: 적 궤적 {enemyTrailDistance}칸 거리 발견 → 보너스 {bonus:F2}");
+        }
+
+        // 3. 벽이 너무 가까우면 위험
+        if (wallDistance <= 3)
+        {
+            float wallDanger = -1.0f * (4 - wallDistance) / 3f; // 가까울수록 큰 페널티 (최대 -1.0)
+            AddReward(wallDanger);
+            Debug.Log($"[Raycast] Player {controller.playerID}: 벽까지 {wallDistance}칸 → 페널티 {wallDanger:F2}");
+        }
     }
 
     /// <summary>

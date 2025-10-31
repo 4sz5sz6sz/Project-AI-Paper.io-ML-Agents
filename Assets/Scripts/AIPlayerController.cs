@@ -2,10 +2,11 @@ using UnityEngine;
 
 public class AIPlayerController : BasePlayerController
 {
-    private MyAgent agent;
+    // agent는 BasePlayerController에 이미 선언되어 있으므로 제거
     // 플레이어 ID를 추가 (Inspector에서 설정하거나 코드에서 할당)
     [Tooltip("이 AI 플레이어의 고유 ID (GameController와 MapManager에서 사용)")]
-    public int playerID; // <--- 이 줄을 추가합니다.
+    public int playerID;
+    
     protected override void Start()
     {
         base.Start();
