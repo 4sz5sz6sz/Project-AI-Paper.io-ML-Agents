@@ -375,6 +375,48 @@ public class MyAgent : Agent
     {
         Vector2Int nextPos = currentPos + dir;
 
+        // 바깥 여부 판단
+        bool outside = mapManager.InBounds(currentPos) && mapManager.GetTile(currentPos) != controller.playerID;
+
+        // 미로 방지 보상 시스템 (안전한 버전)
+        if (outside)
+        {
+            // 1. 꼬리 길이에 비례한 약한 페널티 (미로 억제)
+            if (lastTrailLength > 15)
+            {
+                float lengthPenalty = -0.01f * (lastTrailLength - 15);
+                AddReward(lengthPenalty);
+            }
+
+            // 2. 집과의 거리가 멀어지면 약간의 페널티 (귀환 유도)
+            Vector2Int nearestHome = FindNearestOwnTerritory(currentPos);
+            float distToHome = Vector2.Distance(currentPos, nearestHome);
+            if (distToHome > 10)
+            {
+                AddReward(-0.02f);
+            }
+
+            // 3. 집 방향으로 가면 약간의 보상 (귀환 장려)
+            Vector2 homeVec = new Vector2(nearestHome.x - currentPos.x, nearestHome.y - currentPos.y);
+            if (homeVec != Vector2.zero)
+            {
+                homeVec = homeVec.normalized;
+                float alignment = Vector2.Dot(new Vector2(dir.x, dir.y), homeVec);
+                if (alignment > 0.5f) // 집 방향으로 가면
+                {
+                    AddReward(0.05f * alignment);
+                }
+            }
+
+            // 4. 바깥 체류 시간이 길면 점진적 페널티 (너무 강하지 않게)
+            if (trailIsOpen)
+            {
+                float openSec = Time.time - trailStartTime;
+                if (openSec > 6f) AddReward(-0.1f);
+                if (openSec > 10f) AddReward(-0.2f);
+            }
+        }
+
         // 0. 자기 영역 안에 너무 오래 머물면 감점
         bool currentlyInOwnTerritory = mapManager.InBounds(currentPos) &&
                                        mapManager.GetTile(currentPos) == controller.playerID;
@@ -604,7 +646,7 @@ public class MyAgent : Agent
     }
 
     /// <summary>
-    /// 180도 턴(정반대 방향) 방지: Action Masking
+    /// 안전한 Action Masking: 정반대 방향 + 극단적 미로 상황만 방지
     /// </summary>
     public override void WriteDiscreteActionMask(IDiscreteActionMask actionMask)
     {
@@ -623,6 +665,46 @@ public class MyAgent : Agent
         if (opposite >= 0)
         {
             actionMask.SetActionEnabled(0, opposite, false);
+        }
+
+        // 극단적 미로 상황만 추가 마스킹 (매우 보수적으로)
+        Vector2Int currentPos = new Vector2Int(
+            Mathf.RoundToInt(transform.localPosition.x),
+            Mathf.RoundToInt(transform.localPosition.y)
+        );
+        
+        bool outside = mapManager.GetTile(currentPos) != controller.playerID;
+        
+        // 바깥에서 꼬리가 매우 길 때만 (30 이상) 집 방향이 아닌 회전 억제
+        if (outside && lastTrailLength > 30)
+        {
+            Vector2Int nearestHome = FindNearestOwnTerritory(currentPos);
+            Vector2 homeVec = new Vector2(nearestHome.x - currentPos.x, nearestHome.y - currentPos.y);
+            
+            if (homeVec != Vector2.zero)
+            {
+                homeVec = homeVec.normalized;
+                
+                // 4방향 중 집 방향과 정렬이 나쁜 방향만 마스킹
+                Vector2Int[] dirs = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
+                for (int i = 0; i < dirs.Length; i++)
+                {
+                    if (i == opposite) continue; // 이미 정반대는 막았음
+                    
+                    Vector2 dirVec = new Vector2(dirs[i].x, dirs[i].y);
+                    float alignment = Vector2.Dot(dirVec, homeVec);
+                    
+                    // 집 방향과 정렬이 매우 나쁘고 (-0.5 이하), 다음 칸이 자기 꼬리면 마스킹
+                    if (alignment < -0.5f)
+                    {
+                        Vector2Int nextPos = currentPos + dirs[i];
+                        if (mapManager.InBounds(nextPos) && mapManager.GetTrail(nextPos) == controller.playerID)
+                        {
+                            actionMask.SetActionEnabled(0, i, false);
+                        }
+                    }
+                }
+            }
         }
     }
 
